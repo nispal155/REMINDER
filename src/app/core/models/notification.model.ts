@@ -30,3 +30,4 @@ export interface NotificationSettings {
   defaultLeadTimes: number[]; // e.g. [0, 15]
   quietHours: QuietHoursConfig;
 }
+

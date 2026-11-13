@@ -37,3 +37,4 @@ export class NotificationJobRepository extends BaseRepository<NotificationJobRec
     await this.table.update(id, { status: 'sent' });
   }
 }
+
