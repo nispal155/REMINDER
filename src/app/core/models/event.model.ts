@@ -16,3 +16,4 @@ export interface EventRecord {
   createdAt: string;
   updatedAt: string;
 }
+

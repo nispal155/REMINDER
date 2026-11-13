@@ -32,3 +32,4 @@ export class EmptyStateComponent {
   actionLabel = input<string>('');
   actionClicked = output<void>();
 }
+

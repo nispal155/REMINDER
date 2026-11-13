@@ -17,3 +17,4 @@ export interface Birthday {
   createdAt: string;
   updatedAt: string;
 }
+

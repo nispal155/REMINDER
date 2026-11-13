@@ -51,3 +51,4 @@ export class ModalComponent {
   title = input<string>('');
   close = output<void>();
 }
+

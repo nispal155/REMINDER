@@ -57,3 +57,4 @@ export class BirthdayService {
     this.toast.info('Birthday removed');
   }
 }
+

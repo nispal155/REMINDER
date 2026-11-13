@@ -18,3 +18,4 @@ export class EventRepository extends BaseRepository<EventRecord, string> {
       .toArray();
   }
 }
+

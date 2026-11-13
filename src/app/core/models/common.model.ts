@@ -12,3 +12,4 @@ export interface DashboardStats {
   completed: number;
   birthdaysThisMonth: number;
 }
+

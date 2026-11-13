@@ -19,3 +19,4 @@ import { CommonModule } from '@angular/common';
 export class CardComponent {
   interactive = input<boolean>(false);
 }
+

@@ -20,3 +20,4 @@ export class SettingsRepository extends BaseRepository<SettingRecord, string> {
     return this.table.put({ key, value });
   }
 }
+

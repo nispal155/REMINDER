@@ -23,12 +23,15 @@ export class PwaInstallService {
   }
 
   private checkIfInstalled() {
-    if (window.matchMedia('(display-mode: standalone)').matches || (window.navigator as any).standalone) {
-      this.isInstalled.set(true);
+    if (typeof window !== 'undefined' && typeof window.matchMedia === 'function') {
+      if (window.matchMedia('(display-mode: standalone)').matches || (window.navigator as any)?.standalone) {
+        this.isInstalled.set(true);
+      }
     }
   }
 
   private listenForPrompt() {
+    if (typeof window === 'undefined') return;
     window.addEventListener('beforeinstallprompt', (e: Event) => {
       e.preventDefault();
       this.deferredPrompt = e as BeforeInstallPromptEvent;
@@ -60,3 +63,4 @@ export class PwaInstallService {
     return false;
   }
 }
+

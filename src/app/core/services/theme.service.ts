@@ -34,18 +34,22 @@ export class ThemeService {
     this.applyTheme(initialTheme);
 
     // Watch for OS system preference changes
-    const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
-    this.mediaQueryListener = (e: MediaQueryListEvent) => {
-      if (this.currentTheme() === 'system') {
-        this.applyDarkClass(e.matches);
-      }
-    };
-    mediaQuery.addEventListener('change', this.mediaQueryListener);
+    if (typeof window !== 'undefined' && typeof window.matchMedia === 'function') {
+      const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
+      this.mediaQueryListener = (e: MediaQueryListEvent) => {
+        if (this.currentTheme() === 'system') {
+          this.applyDarkClass(e.matches);
+        }
+      };
+      mediaQuery.addEventListener('change', this.mediaQueryListener);
+    }
   }
 
   async setTheme(theme: AppTheme) {
     this.currentTheme.set(theme);
-    localStorage.setItem('reminder_theme', theme);
+    if (typeof localStorage !== 'undefined') {
+      localStorage.setItem('reminder_theme', theme);
+    }
     try {
       await this.settingsRepo.setSetting('theme', theme);
     } catch (e) {
@@ -56,7 +60,9 @@ export class ThemeService {
 
   private applyTheme(theme: AppTheme) {
     if (theme === 'system') {
-      const systemDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+      const systemDark = typeof window !== 'undefined' && typeof window.matchMedia === 'function'
+        ? window.matchMedia('(prefers-color-scheme: dark)').matches
+        : false;
       this.applyDarkClass(systemDark);
     } else {
       this.applyDarkClass(theme === 'dark');
@@ -72,3 +78,4 @@ export class ThemeService {
     }
   }
 }
+

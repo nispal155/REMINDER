@@ -38,3 +38,4 @@ export class ReminderDatabase extends Dexie {
 }
 
 export const db = new ReminderDatabase();
+

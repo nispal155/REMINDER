@@ -69,3 +69,4 @@ export class BottomNavComponent {
     { label: 'Settings', route: '/settings', icon: 'settings' }
   ];
 }
+

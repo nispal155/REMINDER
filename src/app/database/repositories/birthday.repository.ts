@@ -15,3 +15,4 @@ export class BirthdayRepository extends BaseRepository<Birthday, string> {
     return this.table.where('dateAD').equals(dateAD).toArray();
   }
 }
+

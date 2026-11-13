@@ -73,3 +73,4 @@ export class SettingsService {
     this.toast.warning('All local data cleared');
   }
 }
+

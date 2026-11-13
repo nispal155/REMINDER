@@ -39,3 +39,4 @@ export abstract class BaseRepository<T, K> {
     return this.table;
   }
 }
+
