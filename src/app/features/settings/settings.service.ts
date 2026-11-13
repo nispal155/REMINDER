@@ -30,7 +30,9 @@ export class SettingsService {
       endTime: '07:00',
       mode: 'silent'
     },
-    autoSyncOnWifiOnly: true
+    autoSyncOnWifiOnly: true,
+    autoSyncEnabled: true,
+    syncIntervalMinutes: 15
   });
 
   constructor() {
@@ -54,6 +56,7 @@ export class SettingsService {
         mode: 'silent'
       });
       const autoSyncOnWifiOnly = await this.settingsRepo.getSetting<boolean>('autoSyncOnWifiOnly', true);
+      const autoSyncEnabled = await this.settingsRepo.getSetting<boolean>('autoSyncEnabled', true);
       const lastBackupDate = await this.settingsRepo.getSetting<string | undefined>('lastBackupDate', undefined);
 
       this.settings.set({
@@ -67,6 +70,8 @@ export class SettingsService {
         defaultLeadTime,
         quietHours,
         autoSyncOnWifiOnly,
+        autoSyncEnabled,
+        syncIntervalMinutes: 15,
         lastBackupDate
       });
     } catch (e) {
@@ -108,6 +113,12 @@ export class SettingsService {
     await this.settingsRepo.setSetting('quietHours', quietHours);
     this.settings.update(s => ({ ...s, quietHours }));
     this.toast.info('Quiet hours updated');
+  }
+
+  async updateAutoSync(enabled: boolean): Promise<void> {
+    await this.settingsRepo.setSetting('autoSyncEnabled', enabled);
+    this.settings.update(s => ({ ...s, autoSyncEnabled: enabled }));
+    this.toast.info(enabled ? 'Automatic cloud sync enabled' : 'Automatic cloud sync paused');
   }
 
   async seedDemoData(): Promise<void> {

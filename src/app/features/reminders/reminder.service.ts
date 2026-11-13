@@ -14,6 +14,8 @@ import { IndexedDbService } from '../../core/services/indexed-db.service';
 import { ToastService } from '../../core/services/toast.service';
 import { NepaliCalendarService } from '../../core/services/nepali-calendar.service';
 import { ReminderSchedulerService } from '../../core/services/reminder-scheduler.service';
+import { SyncService } from '../../core/services/sync.service';
+import { AttachmentService } from '../../core/services/attachment.service';
 
 export interface CreateReminderDTO {
   title: string;
@@ -25,6 +27,8 @@ export interface CreateReminderDTO {
   priority: Priority;
   category: ReminderCategory | string;
   repeatType: RepeatType;
+  attachmentIds?: string[];
+  files?: File[];
   notificationSchedule?: {
     remindAtTime: boolean;
     minutesBefore: number[];
@@ -43,6 +47,8 @@ export class ReminderService {
   private readonly toast = inject(ToastService);
   private readonly nepaliCalendar = inject(NepaliCalendarService);
   private readonly scheduler = inject(ReminderSchedulerService);
+  private readonly syncService = inject(SyncService);
+  private readonly attachmentService = inject(AttachmentService);
 
   readonly allReminders = signal<Reminder[]>([]);
   readonly isLoading = signal<boolean>(false);
@@ -224,13 +230,26 @@ export class ReminderService {
         remindAtTime: true,
         minutesBefore: [15]
       },
+      attachmentIds: dto.attachmentIds || [],
       status: 'pending',
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString()
     };
 
     await this.reminderRepo.create(newReminder);
+
+    if (dto.files && dto.files.length > 0) {
+      const attachmentIds: string[] = [];
+      for (const file of dto.files) {
+        const att = await this.attachmentService.addAttachment(newReminder.id, 'reminder', file);
+        attachmentIds.push(att.id);
+      }
+      newReminder.attachmentIds = attachmentIds;
+      await this.reminderRepo.update(newReminder.id, { attachmentIds });
+    }
+
     await this.scheduler.scheduleJobsForReminder(newReminder);
+    await this.syncService.recordLocalChange('reminder', newReminder.id, 'create', newReminder);
     this.toast.success(`Reminder "${newReminder.title}" saved!`);
     return newReminder;
   }
@@ -238,14 +257,26 @@ export class ReminderService {
   /**
    * Update existing reminder
    */
-  async updateReminder(id: string, changes: Partial<Reminder>): Promise<void> {
+  async updateReminder(id: string, changes: Partial<Reminder> & { files?: File[] }): Promise<void> {
+    const { files, ...reminderChanges } = changes;
+    if (files && files.length > 0) {
+      const existing = await this.reminderRepo.getById(id);
+      const attachmentIds: string[] = [...(existing?.attachmentIds || [])];
+      for (const file of files) {
+        const att = await this.attachmentService.addAttachment(id, 'reminder', file);
+        attachmentIds.push(att.id);
+      }
+      reminderChanges.attachmentIds = attachmentIds;
+    }
+
     await this.reminderRepo.update(id, {
-      ...changes,
+      ...reminderChanges,
       updatedAt: new Date().toISOString()
     });
     const updated = await this.reminderRepo.getById(id);
     if (updated) {
       await this.scheduler.scheduleJobsForReminder(updated);
+      await this.syncService.recordLocalChange('reminder', id, 'update', updated);
     }
     this.toast.success('Reminder updated');
   }
@@ -265,6 +296,7 @@ export class ReminderService {
         updatedAt: new Date().toISOString()
       });
       await this.scheduler.cancelJobsForReminder(reminder.id);
+      await this.syncService.recordLocalChange('reminder', reminder.id, 'update');
       this.toast.info(`Completed "${reminder.title}"`);
 
       // Check for recurring repeat rule
@@ -286,6 +318,7 @@ export class ReminderService {
     const reopened = await this.reminderRepo.getById(id);
     if (reopened) {
       await this.scheduler.scheduleJobsForReminder(reopened);
+      await this.syncService.recordLocalChange('reminder', id, 'update', reopened);
     }
     this.toast.info('Reminder reopened');
   }
@@ -306,6 +339,7 @@ export class ReminderService {
     };
     await this.reminderRepo.create(duplicated);
     await this.scheduler.scheduleJobsForReminder(duplicated);
+    await this.syncService.recordLocalChange('reminder', duplicated.id, 'create', duplicated);
     this.toast.success(`Duplicated "${reminder.title}"`);
     return duplicated;
   }
@@ -316,6 +350,7 @@ export class ReminderService {
   async deleteReminder(id: string): Promise<void> {
     await this.reminderRepo.delete(id);
     await this.scheduler.cancelJobsForReminder(id);
+    await this.syncService.recordLocalChange('reminder', id, 'delete');
     this.toast.info('Reminder deleted');
   }
 
@@ -372,6 +407,7 @@ export class ReminderService {
     const snoozedRem = await this.reminderRepo.getById(reminder.id);
     if (snoozedRem) {
       await this.scheduler.scheduleJobsForReminder(snoozedRem);
+      await this.syncService.recordLocalChange('reminder', reminder.id, 'update', snoozedRem);
     }
 
     this.toast.info(`Snoozed until ${newTime}`);
@@ -435,6 +471,8 @@ export class ReminderService {
     };
 
     await this.reminderRepo.create(nextOccurrence);
+    await this.scheduler.scheduleJobsForReminder(nextOccurrence);
+    await this.syncService.recordLocalChange('reminder', nextOccurrence.id, 'create', nextOccurrence);
     this.toast.info(`Next recurrence scheduled for ${nextBsStr} (${nextAdStr})`);
   }
 }

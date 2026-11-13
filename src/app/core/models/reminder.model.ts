@@ -57,6 +57,7 @@ export interface Reminder {
   repeatType: RepeatType;
   repeatConfig?: RepeatConfig;
   notificationSchedule: NotificationSchedule;
+  attachmentIds?: string[];
   status: ReminderStatus;
   snoozedUntil?: string; // ISO datetime
   completedAt?: string;

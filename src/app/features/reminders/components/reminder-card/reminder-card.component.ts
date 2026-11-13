@@ -79,6 +79,13 @@ import { CardComponent } from '../../../../shared/components/card/card.component
                 </span>
               }
 
+              @if (reminder().attachmentIds && reminder().attachmentIds!.length > 0) {
+                <span class="inline-flex items-center space-x-1 px-1.5 py-0.5 rounded bg-blue-50 dark:bg-blue-950/60 text-blue-700 dark:text-blue-300 text-[11px] font-semibold border border-blue-200/60 dark:border-blue-800/60">
+                  <span>📎</span>
+                  <span>{{ reminder().attachmentIds!.length }} files</span>
+                </span>
+              }
+
               @if (nextNotification()) {
                 <span class="inline-flex items-center space-x-1 px-2 py-0.5 rounded bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 text-[11px] font-semibold border border-emerald-200/60 dark:border-emerald-800/60">
                   <span>🔔 Next alert:</span>

@@ -16,6 +16,12 @@ export interface AppSettings {
   defaultLeadTime: number; // e.g. 15
   quietHours: QuietHoursConfig;
   autoSyncOnWifiOnly: boolean;
+  googleClientId?: string;
+  authorizedEmail?: string;
+  autoSyncEnabled: boolean;
+  syncIntervalMinutes: number;
+  lastSyncedAt?: string;
+  backupFrequency?: 'daily' | 'weekly' | 'manual';
   lastBackupDate?: string;
 }
 

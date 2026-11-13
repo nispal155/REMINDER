@@ -237,6 +237,43 @@ import { BS_MONTHS } from '../../../../core/models/calendar.model';
         </div>
       </div>
 
+      <!-- Attachments: Images, Documents, Bills -->
+      <div class="p-3 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200/80 dark:border-slate-800 space-y-2">
+        <div class="flex items-center justify-between">
+          <label class="block text-xs font-bold text-slate-800 dark:text-slate-200 uppercase tracking-wider">
+            📎 Attachments (Images, PDFs, Documents, Bills)
+          </label>
+          <label class="px-2.5 py-1 text-xs font-semibold rounded-lg bg-indigo-50 dark:bg-indigo-950/70 text-indigo-600 dark:text-indigo-400 border border-indigo-200 dark:border-indigo-800 hover:bg-indigo-100 cursor-pointer">
+            + Add Files
+            <input type="file" multiple (change)="onFilesSelected($event)" class="hidden" />
+          </label>
+        </div>
+        <p class="text-[11px] text-slate-500 dark:text-slate-400">
+          Saved offline in IndexedDB and backed up to Google Drive when online.
+        </p>
+
+        @if (selectedFiles().length > 0) {
+          <div class="space-y-1.5 pt-1">
+            @for (file of selectedFiles(); track file.name; let i = $index) {
+              <div class="flex items-center justify-between p-2 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-xs">
+                <div class="flex items-center space-x-2 truncate">
+                  <span>📄</span>
+                  <span class="font-medium text-slate-800 dark:text-slate-200 truncate">{{ file.name }}</span>
+                  <span class="text-[10px] text-slate-400">({{ formatFileSize(file.size) }})</span>
+                </div>
+                <button
+                  type="button"
+                  (click)="removeFile(i)"
+                  class="text-rose-500 hover:text-rose-700 p-1 cursor-pointer font-bold"
+                >
+                  ✕
+                </button>
+              </div>
+            }
+          </div>
+        }
+      </div>
+
       <!-- Actions -->
       <div class="flex items-center justify-end space-x-2 pt-3 border-t border-slate-100 dark:border-slate-800">
         <app-button variant="ghost" size="sm" type="button" (clicked)="cancelled.emit()">
@@ -268,6 +305,7 @@ export class ReminderFormComponent implements OnInit {
       remindAtTime: boolean;
       minutesBefore: number[];
     };
+    files?: File[];
   }>();
   cancelled = output<void>();
 
@@ -290,6 +328,26 @@ export class ReminderFormComponent implements OnInit {
   readonly availableBsDays = signal<number[]>([]);
   readonly equivalentAdDisplay = signal<string>('');
   readonly equivalentBsDisplay = signal<string>('');
+  readonly selectedFiles = signal<File[]>([]);
+
+  onFilesSelected(event: Event) {
+    const input = event.target as HTMLInputElement;
+    if (input.files && input.files.length > 0) {
+      const added = Array.from(input.files);
+      this.selectedFiles.update(files => [...files, ...added]);
+      input.value = '';
+    }
+  }
+
+  removeFile(index: number) {
+    this.selectedFiles.update(files => files.filter((_, i) => i !== index));
+  }
+
+  formatFileSize(bytes: number): string {
+    if (bytes < 1024) return `${bytes} B`;
+    if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+    return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+  }
 
   readonly form = this.fb.group({
     title: ['', [Validators.required, Validators.minLength(2)]],
@@ -446,7 +504,8 @@ export class ReminderFormComponent implements OnInit {
       notificationSchedule: {
         remindAtTime: this.selectedLeadTimes().includes(0),
         minutesBefore: this.selectedLeadTimes()
-      }
+      },
+      files: this.selectedFiles()
     });
   }
 }

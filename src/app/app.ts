@@ -6,6 +6,7 @@ import { SidebarComponent } from './shared/components/sidebar/sidebar.component'
 import { BottomNavComponent } from './shared/components/bottom-nav/bottom-nav.component';
 import { ToastContainerComponent } from './shared/components/toast/toast-container.component';
 import { ModalComponent } from './shared/components/modal/modal.component';
+import { ConflictModalComponent } from './shared/components/conflict-modal/conflict-modal.component';
 import { ReminderFormComponent } from './features/reminders/components/reminder-form/reminder-form.component';
 import { ReminderService } from './features/reminders/reminder.service';
 import { NotificationService } from './core/services/notification.service';
@@ -21,6 +22,7 @@ import { NotificationService } from './core/services/notification.service';
     BottomNavComponent,
     ToastContainerComponent,
     ModalComponent,
+    ConflictModalComponent,
     ReminderFormComponent
   ],
   styleUrl: './app.css',

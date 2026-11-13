@@ -1,23 +1,28 @@
 import { Component, inject, signal, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
+import { FormsModule } from '@angular/forms';
 import { SettingsService } from './settings.service';
 import { ThemeService } from '../../core/services/theme.service';
 import { IndexedDbService } from '../../core/services/indexed-db.service';
 import { PwaInstallService } from '../../core/services/pwa-install.service';
 import { NotificationService } from '../../core/services/notification.service';
+import { AuthService } from '../../core/services/auth.service';
+import { SyncService } from '../../core/services/sync.service';
+import { BackupService } from '../../core/services/backup.service';
 import { CardComponent } from '../../shared/components/card/card.component';
 import { ButtonComponent } from '../../shared/components/button/button.component';
 import { AppTheme, CalendarType } from '../../core/models/settings.model';
+import { DriveFileItem } from '../../core/services/google-drive.service';
 
 @Component({
   selector: 'app-settings',
   standalone: true,
-  imports: [CommonModule, CardComponent, ButtonComponent],
+  imports: [CommonModule, FormsModule, CardComponent, ButtonComponent],
   template: `
     <div class="space-y-6 max-w-4xl">
       <div>
         <h2 class="text-xl sm:text-2xl font-bold text-slate-900 dark:text-white">Settings</h2>
-        <p class="text-xs sm:text-sm text-slate-500 dark:text-slate-400">Configure appearance, calendar preference, and offline storage</p>
+        <p class="text-xs sm:text-sm text-slate-500 dark:text-slate-400">Configure appearance, calendar, notifications, Google Drive sync, and backups</p>
       </div>
 
       <!-- Appearance -->
@@ -102,118 +107,359 @@ import { AppTheme, CalendarType } from '../../core/models/settings.model';
         </div>
       </app-card>
 
-      <!-- Notifications & Alert Engine -->
+      <!-- Google OAuth & Google Drive Sync Section -->
       <app-card>
-        <div class="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-slate-800">
+        <div class="flex items-center justify-between mb-2">
           <div>
-            <h3 class="text-base font-bold text-slate-900 dark:text-white">Notifications & Alerts</h3>
+            <h3 class="text-base font-bold text-slate-900 dark:text-white flex items-center space-x-2">
+              <span>Google Drive Cloud Sync</span>
+              @if (authService.isAuthenticated()) {
+                <span class="px-2 py-0.5 text-[10px] font-semibold rounded-full bg-emerald-100 dark:bg-emerald-950/70 text-emerald-700 dark:text-emerald-300">
+                  Connected
+                </span>
+              } @else {
+                <span class="px-2 py-0.5 text-[10px] font-semibold rounded-full bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400">
+                  Not Connected
+                </span>
+              }
+            </h3>
             <p class="text-xs text-slate-500 dark:text-slate-400">
-              Offline alarm engine using Web Notifications and Service Worker actions.
+              IndexedDB stays primary. Google Drive backs up data and syncs across devices.
             </p>
           </div>
 
-          <!-- Permission Status Badge -->
-          <div class="flex items-center space-x-2">
-            @switch (notificationService.permissionState()) {
-              @case ('granted') {
-                <span class="inline-flex items-center space-x-1 px-2.5 py-1 rounded-full text-xs font-bold bg-emerald-50 dark:bg-emerald-950/70 text-emerald-600 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-800">
-                  <span class="w-2 h-2 rounded-full bg-emerald-500"></span>
-                  <span>Permission Granted</span>
-                </span>
+          @if (authService.isAuthenticated()) {
+            <app-button variant="secondary" size="sm" (clicked)="onSignOut()">
+              Sign Out
+            </app-button>
+          } @else {
+            <app-button variant="primary" size="sm" (clicked)="onSignIn()" [disabled]="authService.isLoading()">
+              @if (authService.isLoading()) {
+                <span>Connecting...</span>
+              } @else {
+                <span>Sign in with Google</span>
               }
-              @case ('denied') {
-                <span class="inline-flex items-center space-x-1 px-2.5 py-1 rounded-full text-xs font-bold bg-rose-50 dark:bg-rose-950/70 text-rose-600 dark:text-rose-400 border border-rose-200 dark:border-rose-800">
-                  <span class="w-2 h-2 rounded-full bg-rose-500"></span>
-                  <span>Blocked in Browser</span>
-                </span>
-              }
-              @case ('default') {
-                <app-button variant="primary" size="sm" (clicked)="onRequestPermission()">
-                  Enable Notifications
-                </app-button>
-              }
-              @case ('unsupported') {
-                <span class="text-xs text-slate-400">Notifications Unsupported</span>
-              }
+            </app-button>
+          }
+        </div>
+
+        @if (authService.authError()) {
+          <div class="p-3 my-3 rounded-xl text-xs bg-rose-50 dark:bg-rose-950/40 text-rose-700 dark:text-rose-300 border border-rose-200 dark:border-rose-900/60">
+            {{ authService.authError() }}
+          </div>
+        }
+
+        <!-- Authenticated Profile Details -->
+        @if (authService.currentUser(); as user) {
+          <div class="flex items-center space-x-3 p-3 my-3 rounded-xl bg-slate-50 dark:bg-slate-800/50 border border-slate-200/80 dark:border-slate-800">
+            @if (user.picture) {
+              <img [src]="user.picture" alt="User avatar" class="w-10 h-10 rounded-full border border-slate-200 dark:border-slate-700" />
+            } @else {
+              <div class="w-10 h-10 rounded-full bg-indigo-600 text-white flex items-center justify-center font-bold">
+                {{ user.name.charAt(0) }}
+              </div>
             }
+            <div class="flex-1 min-w-0">
+              <h4 class="text-xs sm:text-sm font-semibold text-slate-900 dark:text-white truncate">{{ user.name }}</h4>
+              <p class="text-[11px] text-slate-500 dark:text-slate-400 truncate">{{ user.email }}</p>
+            </div>
+            <div class="text-right text-[11px]">
+              <span class="text-slate-400">Device ID:</span>
+              <span class="font-mono text-slate-600 dark:text-slate-300 ml-1">{{ syncService.deviceId }}</span>
+            </div>
+          </div>
+
+          <!-- Sync Controls -->
+          <div class="p-3.5 my-3 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50/60 dark:bg-slate-800/30 space-y-3">
+            <div class="flex items-center justify-between">
+              <div>
+                <h4 class="text-xs sm:text-sm font-semibold text-slate-800 dark:text-slate-200">Sync Status</h4>
+                <p class="text-[11px] text-slate-500 dark:text-slate-400">
+                  @if (syncService.lastSyncedAt()) {
+                    Last synced: {{ syncService.lastSyncedAt() | date:'medium' }}
+                  } @else {
+                    Never synced
+                  }
+                  @if (syncService.pendingCount() > 0) {
+                    ({{ syncService.pendingCount() }} local changes pending)
+                  }
+                </p>
+              </div>
+
+              <div class="flex items-center space-x-2">
+                <app-button
+                  variant="primary"
+                  size="sm"
+                  (clicked)="onSyncNow()"
+                  [disabled]="syncService.syncStatus() === 'syncing'"
+                >
+                  @if (syncService.syncStatus() === 'syncing') {
+                    <span>Syncing...</span>
+                  } @else {
+                    <span>Sync Now</span>
+                  }
+                </app-button>
+              </div>
+            </div>
+          </div>
+        }
+
+        <!-- Configuration Inputs -->
+        <div class="pt-3 border-t border-slate-200 dark:border-slate-800/80 space-y-3">
+          <div>
+            <label class="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
+              Google OAuth Client ID
+            </label>
+            <div class="flex space-x-2">
+              <input
+                type="text"
+                [(ngModel)]="customClientId"
+                placeholder="apps.googleusercontent.com"
+                class="flex-1 px-3 py-1.5 text-xs rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-white"
+              />
+              <button
+                type="button"
+                (click)="onSaveClientId()"
+                class="px-3 py-1.5 text-xs font-medium rounded-lg bg-indigo-50 dark:bg-indigo-950/70 text-indigo-600 dark:text-indigo-400 border border-indigo-200 dark:border-indigo-800 hover:bg-indigo-100 cursor-pointer"
+              >
+                Save
+              </button>
+            </div>
+            <p class="text-[10px] text-slate-400 mt-1">Obtain from Google Cloud Console with Drive.file scope.</p>
+          </div>
+
+          <div>
+            <label class="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
+              Authorized Owner Google Email (Single-User Restriction)
+            </label>
+            <div class="flex space-x-2">
+              <input
+                type="email"
+                [(ngModel)]="customAuthorizedEmail"
+                placeholder="your.email@gmail.com"
+                class="flex-1 px-3 py-1.5 text-xs rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-white"
+              />
+              <button
+                type="button"
+                (click)="onSaveAuthorizedEmail()"
+                class="px-3 py-1.5 text-xs font-medium rounded-lg bg-indigo-50 dark:bg-indigo-950/70 text-indigo-600 dark:text-indigo-400 border border-indigo-200 dark:border-indigo-800 hover:bg-indigo-100 cursor-pointer"
+              >
+                Save
+              </button>
+            </div>
+            <p class="text-[10px] text-slate-400 mt-1">Only this Google account will be allowed to synchronize.</p>
+          </div>
+        </div>
+      </app-card>
+
+      <!-- Backups: Cloud & Local Section -->
+      <app-card>
+        <div class="mb-4">
+          <h3 class="text-base font-bold text-slate-900 dark:text-white">Backups & Recovery</h3>
+          <p class="text-xs text-slate-500 dark:text-slate-400">
+            Export standalone JSON backups locally or store complete snapshots in Google Drive.
+          </p>
+        </div>
+
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-4">
+          <!-- Cloud Backup Action -->
+          <div class="p-3.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-800/40 space-y-2">
+            <h4 class="text-xs sm:text-sm font-semibold text-slate-800 dark:text-slate-200 flex items-center space-x-1.5">
+              <span>☁️ Cloud Backup</span>
+            </h4>
+            <p class="text-[11px] text-slate-500 dark:text-slate-400">
+              Snapshot stored in REMINDER_APP/backups/ on your Google Drive.
+            </p>
+            <div class="pt-1">
+              <app-button
+                variant="primary"
+                size="sm"
+                (clicked)="onBackupToDrive()"
+                [disabled]="!authService.isAuthenticated()"
+              >
+                Backup Now to Drive
+              </app-button>
+            </div>
+          </div>
+
+          <!-- Local Export / Import Action -->
+          <div class="p-3.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-800/40 space-y-2">
+            <h4 class="text-xs sm:text-sm font-semibold text-slate-800 dark:text-slate-200 flex items-center space-x-1.5">
+              <span>💾 Local JSON File</span>
+            </h4>
+            <p class="text-[11px] text-slate-500 dark:text-slate-400">
+              Download or upload full backup JSON without requiring Google Drive.
+            </p>
+            <div class="flex items-center space-x-2 pt-1">
+              <app-button variant="secondary" size="sm" (clicked)="onExportLocalJson()">
+                Export JSON
+              </app-button>
+              <label class="inline-flex items-center justify-center px-3 py-1.5 text-xs font-semibold rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700 border border-slate-200 dark:border-slate-700 cursor-pointer transition-all">
+                Import JSON
+                <input type="file" accept=".json" class="hidden" (change)="onImportLocalJson($event)" />
+              </label>
+            </div>
           </div>
         </div>
 
-        <div class="space-y-4 pt-4">
-          <!-- Master Switch & Sound/Vibration -->
-          <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
-            <label class="flex items-center justify-between p-3 rounded-xl border border-slate-200/80 dark:border-slate-800 bg-white dark:bg-slate-800/60 cursor-pointer">
-              <span class="text-xs font-bold text-slate-800 dark:text-slate-200">Enable Alerts</span>
-              <input
-                type="checkbox"
-                [checked]="settingsService.settings().notificationsEnabled"
-                (change)="settingsService.updateNotificationsEnabled(!settingsService.settings().notificationsEnabled)"
-                class="h-4 w-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
-              />
-            </label>
+        <!-- Available Drive Backups List -->
+        @if (authService.isAuthenticated()) {
+          <div class="pt-3 border-t border-slate-200 dark:border-slate-800 space-y-2">
+            <div class="flex items-center justify-between">
+              <h4 class="text-xs font-semibold text-slate-700 dark:text-slate-300">
+                Available Cloud Backups
+              </h4>
+              <button
+                type="button"
+                (click)="onLoadDriveBackups()"
+                class="text-[11px] text-indigo-600 dark:text-indigo-400 hover:underline cursor-pointer"
+              >
+                Refresh List
+              </button>
+            </div>
 
-            <label class="flex items-center justify-between p-3 rounded-xl border border-slate-200/80 dark:border-slate-800 bg-white dark:bg-slate-800/60 cursor-pointer">
-              <span class="text-xs font-bold text-slate-800 dark:text-slate-200">Alert Sound</span>
-              <input
-                type="checkbox"
-                [checked]="settingsService.settings().notificationSound"
-                (change)="settingsService.updateNotificationSound(!settingsService.settings().notificationSound)"
-                class="h-4 w-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
-              />
-            </label>
+            @if (driveBackups().length > 0) {
+              <div class="space-y-1.5 max-h-48 overflow-y-auto">
+                @for (backup of driveBackups(); track backup.id) {
+                  <div class="flex items-center justify-between p-2 rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-xs">
+                    <div>
+                      <p class="font-medium text-slate-900 dark:text-white">{{ backup.name }}</p>
+                      <p class="text-[10px] text-slate-400">{{ backup.modifiedTime | date:'medium' }}</p>
+                    </div>
+                    <button
+                      type="button"
+                      (click)="onRestoreFromDrive(backup.id)"
+                      class="px-2.5 py-1 text-[11px] font-medium rounded-lg bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800 hover:bg-emerald-100 cursor-pointer"
+                    >
+                      Restore
+                    </button>
+                  </div>
+                }
+              </div>
+            } @else {
+              <p class="text-xs text-slate-400 italic">No cloud backups found in REMINDER_APP/backups yet.</p>
+            }
+          </div>
+        }
+      </app-card>
 
-            <label class="flex items-center justify-between p-3 rounded-xl border border-slate-200/80 dark:border-slate-800 bg-white dark:bg-slate-800/60 cursor-pointer">
-              <span class="text-xs font-bold text-slate-800 dark:text-slate-200">Vibration</span>
-              <input
-                type="checkbox"
-                [checked]="settingsService.settings().notificationVibration"
-                (change)="settingsService.updateNotificationVibration(!settingsService.settings().notificationVibration)"
-                class="h-4 w-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
-              />
-            </label>
+      <!-- Notification Engine Settings -->
+      <app-card>
+        <h3 class="text-base font-bold text-slate-900 dark:text-white mb-1">Notifications & Alerts</h3>
+        <p class="text-xs text-slate-500 dark:text-slate-400 mb-4">
+          Control permission, quiet hours, sound chime, and haptic vibration.
+        </p>
+
+        <!-- System Permission Banner -->
+        <div class="flex items-center justify-between p-3.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-800/40 mb-4">
+          <div class="flex items-center space-x-3">
+            <span class="text-2xl">
+              @if (notificationService.permissionState() === 'granted') { ✅ }
+              @else if (notificationService.permissionState() === 'denied') { 🚫 }
+              @else { 🔔 }
+            </span>
+            <div>
+              <h4 class="text-xs sm:text-sm font-semibold text-slate-800 dark:text-slate-200">
+                Browser Permission:
+                <span class="capitalize font-bold">{{ notificationService.permissionState() }}</span>
+              </h4>
+              <p class="text-[11px] text-slate-500 dark:text-slate-400">
+                @if (notificationService.permissionState() === 'granted') {
+                  Application has permission to display alert notifications.
+                } @else if (notificationService.permissionState() === 'denied') {
+                  Permission was denied. Please unblock notifications in browser address bar.
+                } @else {
+                  Permission has not been requested yet.
+                }
+              </p>
+            </div>
+          </div>
+
+          @if (notificationService.permissionState() !== 'granted') {
+            <app-button variant="primary" size="sm" (clicked)="onRequestPermission()">
+              Allow Alerts
+            </app-button>
+          }
+        </div>
+
+        <!-- Notification Toggles -->
+        <div class="space-y-3">
+          <!-- Enable Notifications Toggle -->
+          <div class="flex items-center justify-between py-2 border-b border-slate-100 dark:border-slate-800">
+            <div>
+              <h4 class="text-xs sm:text-sm font-medium text-slate-800 dark:text-slate-200">Notifications Enabled</h4>
+              <p class="text-[11px] text-slate-500 dark:text-slate-400">Trigger alerts when reminder due time arrives</p>
+            </div>
+            <input
+              type="checkbox"
+              [checked]="settingsService.settings().notificationsEnabled"
+              (change)="settingsService.updateNotificationsEnabled(!settingsService.settings().notificationsEnabled)"
+              class="w-5 h-5 rounded text-indigo-600 focus:ring-indigo-500 cursor-pointer"
+            />
+          </div>
+
+          <!-- Sound Chime Toggle -->
+          <div class="flex items-center justify-between py-2 border-b border-slate-100 dark:border-slate-800">
+            <div>
+              <h4 class="text-xs sm:text-sm font-medium text-slate-800 dark:text-slate-200">Audio Chime</h4>
+              <p class="text-[11px] text-slate-500 dark:text-slate-400">Play pleasant synthetic bell chime on alert</p>
+            </div>
+            <input
+              type="checkbox"
+              [checked]="settingsService.settings().notificationSound"
+              (change)="settingsService.updateNotificationSound(!settingsService.settings().notificationSound)"
+              class="w-5 h-5 rounded text-indigo-600 focus:ring-indigo-500 cursor-pointer"
+            />
+          </div>
+
+          <!-- Vibration Toggle -->
+          <div class="flex items-center justify-between py-2 border-b border-slate-100 dark:border-slate-800">
+            <div>
+              <h4 class="text-xs sm:text-sm font-medium text-slate-800 dark:text-slate-200">Haptic Vibration</h4>
+              <p class="text-[11px] text-slate-500 dark:text-slate-400">Vibrate mobile phone when supported</p>
+            </div>
+            <input
+              type="checkbox"
+              [checked]="settingsService.settings().notificationVibration"
+              (change)="settingsService.updateNotificationVibration(!settingsService.settings().notificationVibration)"
+              class="w-5 h-5 rounded text-indigo-600 focus:ring-indigo-500 cursor-pointer"
+            />
           </div>
 
           <!-- Quiet Hours -->
-          <div class="p-3.5 rounded-xl border border-slate-200/80 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-800/30 space-y-3">
+          <div class="py-2 space-y-2">
             <div class="flex items-center justify-between">
               <div>
-                <h4 class="text-xs font-bold text-slate-800 dark:text-slate-200 uppercase tracking-wider">
-                  🌙 Quiet Hours (Do Not Disturb)
-                </h4>
-                <p class="text-[11px] text-slate-500 dark:text-slate-400">
-                  Silence or defer notifications during night hours (e.g. 10:00 PM to 07:00 AM).
-                </p>
+                <h4 class="text-xs sm:text-sm font-medium text-slate-800 dark:text-slate-200">Quiet Hours (Do Not Disturb)</h4>
+                <p class="text-[11px] text-slate-500 dark:text-slate-400">Mute sound & vibration during sleep hours</p>
               </div>
               <input
                 type="checkbox"
                 [checked]="settingsService.settings().quietHours.enabled"
                 (change)="onToggleQuietHours()"
-                class="h-4 w-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500 cursor-pointer"
+                class="w-5 h-5 rounded text-indigo-600 focus:ring-indigo-500 cursor-pointer"
               />
             </div>
 
             @if (settingsService.settings().quietHours.enabled) {
-              <div class="grid grid-cols-2 gap-3 pt-2">
+              <div class="flex items-center space-x-3 p-3 rounded-xl bg-slate-100 dark:bg-slate-800/60 text-xs">
                 <div>
-                  <label class="block text-[11px] font-semibold text-slate-600 dark:text-slate-400 mb-1">
-                    Start Time
-                  </label>
+                  <label class="block text-[11px] font-medium text-slate-500 dark:text-slate-400 mb-1">Start Time</label>
                   <input
                     type="time"
                     [value]="settingsService.settings().quietHours.startTime"
                     (change)="onQuietHoursTimeChange($event, 'start')"
-                    class="w-full px-3 py-1.5 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-xs text-slate-900 dark:text-white"
+                    class="px-2.5 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-white"
                   />
                 </div>
+                <span class="text-slate-400 font-bold mt-4">→</span>
                 <div>
-                  <label class="block text-[11px] font-semibold text-slate-600 dark:text-slate-400 mb-1">
-                    End Time
-                  </label>
+                  <label class="block text-[11px] font-medium text-slate-500 dark:text-slate-400 mb-1">End Time</label>
                   <input
                     type="time"
                     [value]="settingsService.settings().quietHours.endTime"
                     (change)="onQuietHoursTimeChange($event, 'end')"
-                    class="w-full px-3 py-1.5 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-xs text-slate-900 dark:text-white"
+                    class="px-2.5 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-white"
                   />
                 </div>
               </div>
@@ -221,83 +467,47 @@ import { AppTheme, CalendarType } from '../../core/models/settings.model';
           </div>
 
           <!-- Test Notification Trigger -->
-          <div class="pt-1 flex items-center justify-between">
-            <span class="text-xs text-slate-500 dark:text-slate-400">
-              Verify your browser's audio and alert capabilities:
-            </span>
+          <div class="pt-2">
             <app-button variant="secondary" size="sm" (clicked)="onSendTestNotification()">
-              🔔 Send Test Alert
+              🔔 Send Test Notification
             </app-button>
           </div>
         </div>
       </app-card>
 
-      <!-- IndexedDB & Storage Health -->
+      <!-- Local IndexedDB Storage Diagnostic -->
       <app-card>
-        <div class="flex items-center justify-between mb-2">
-          <div>
-            <h3 class="text-base font-bold text-slate-900 dark:text-white">Local IndexedDB Storage</h3>
-            <p class="text-xs text-slate-500 dark:text-slate-400">All data is stored directly inside your browser's Dexie database.</p>
-          </div>
-          <button
-            type="button"
-            (click)="refreshStats()"
-            class="text-xs text-indigo-600 dark:text-indigo-400 font-semibold hover:underline cursor-pointer"
-          >
-            Refresh
-          </button>
-        </div>
+        <h3 class="text-base font-bold text-slate-900 dark:text-white mb-1">IndexedDB Storage</h3>
+        <p class="text-xs text-slate-500 dark:text-slate-400 mb-4">
+          Local Dexie.js database statistics and storage quota.
+        </p>
 
-        @if (dbStats()) {
-          <div class="grid grid-cols-2 sm:grid-cols-3 gap-2.5 my-4">
-            <div class="p-3 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200/60 dark:border-slate-800">
-              <span class="text-[11px] text-slate-500 dark:text-slate-400">Reminders</span>
-              <p class="text-lg font-bold text-slate-900 dark:text-white">{{ dbStats()?.reminders }}</p>
+        @if (dbStats(); as stats) {
+          <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-4">
+            <div class="p-3 rounded-xl bg-slate-50 dark:bg-slate-800/50 border border-slate-100 dark:border-slate-800">
+              <span class="text-xs text-slate-500 dark:text-slate-400">Reminders</span>
+              <p class="text-lg font-bold text-slate-900 dark:text-white">{{ stats.reminders }}</p>
             </div>
-            <div class="p-3 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200/60 dark:border-slate-800">
-              <span class="text-[11px] text-slate-500 dark:text-slate-400">Events</span>
-              <p class="text-lg font-bold text-slate-900 dark:text-white">{{ dbStats()?.events }}</p>
+            <div class="p-3 rounded-xl bg-slate-50 dark:bg-slate-800/50 border border-slate-100 dark:border-slate-800">
+              <span class="text-xs text-slate-500 dark:text-slate-400">Events</span>
+              <p class="text-lg font-bold text-slate-900 dark:text-white">{{ stats.events }}</p>
             </div>
-            <div class="p-3 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200/60 dark:border-slate-800">
-              <span class="text-[11px] text-slate-500 dark:text-slate-400">Birthdays</span>
-              <p class="text-lg font-bold text-slate-900 dark:text-white">{{ dbStats()?.birthdays }}</p>
+            <div class="p-3 rounded-xl bg-slate-50 dark:bg-slate-800/50 border border-slate-100 dark:border-slate-800">
+              <span class="text-xs text-slate-500 dark:text-slate-400">Birthdays</span>
+              <p class="text-lg font-bold text-slate-900 dark:text-white">{{ stats.birthdays }}</p>
+            </div>
+            <div class="p-3 rounded-xl bg-slate-50 dark:bg-slate-800/50 border border-slate-100 dark:border-slate-800">
+              <span class="text-xs text-slate-500 dark:text-slate-400">Attachments</span>
+              <p class="text-lg font-bold text-slate-900 dark:text-white">{{ stats.attachments }}</p>
             </div>
           </div>
         }
 
-        <!-- Storage quota estimate -->
-        @if (storageEstimate()) {
-          <div class="p-3 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200/60 dark:border-slate-800 mb-4">
-            <div class="flex items-center justify-between text-xs mb-1">
-              <span class="text-slate-500 dark:text-slate-400">Estimated Browser Quota Used</span>
-              <span class="font-semibold text-slate-700 dark:text-slate-300">
-                {{ storageEstimate()?.usageMB }} MB / {{ storageEstimate()?.quotaMB }} MB ({{ storageEstimate()?.percentage }}%)
-              </span>
-            </div>
-            <div class="w-full bg-slate-200 dark:bg-slate-700 h-1.5 rounded-full overflow-hidden">
-              <div
-                class="bg-indigo-600 h-full rounded-full transition-all duration-300"
-                [style.width.%]="storageEstimate()?.percentage || 1"
-              ></div>
-            </div>
-          </div>
-        }
-
-        <!-- Actions -->
-        <div class="flex flex-wrap items-center gap-3 pt-2">
-          <app-button
-            variant="secondary"
-            size="sm"
-            (clicked)="onSeedDemo()"
-          >
-            🌱 Load Sample Data
+        <div class="flex flex-wrap gap-2 pt-2">
+          <app-button variant="secondary" size="sm" (clicked)="onSeedDemo()">
+            🌱 Load Sample Reminders
           </app-button>
-
-          <app-button
-            variant="danger"
-            size="sm"
-            (clicked)="onClearDatabase()"
-          >
+          <app-button variant="danger" size="sm" (clicked)="onClearDatabase()">
             🗑️ Clear All Local Data
           </app-button>
         </div>
@@ -336,13 +546,84 @@ export class SettingsComponent implements OnInit {
   readonly themeService = inject(ThemeService);
   readonly pwaInstall = inject(PwaInstallService);
   readonly notificationService = inject(NotificationService);
+  readonly authService = inject(AuthService);
+  readonly syncService = inject(SyncService);
+  readonly backupService = inject(BackupService);
   private readonly indexedDbService = inject(IndexedDbService);
 
   readonly dbStats = signal<any>(null);
   readonly storageEstimate = signal<any>(null);
+  readonly driveBackups = signal<DriveFileItem[]>([]);
+
+  customClientId = '';
+  customAuthorizedEmail = '';
 
   async ngOnInit() {
+    this.customClientId = this.authService.getClientId();
+    this.customAuthorizedEmail = this.authService.getAuthorizedEmail();
     await this.refreshStats();
+    if (this.authService.isAuthenticated()) {
+      await this.onLoadDriveBackups();
+    }
+  }
+
+  onSaveClientId() {
+    this.authService.setClientId(this.customClientId);
+  }
+
+  onSaveAuthorizedEmail() {
+    this.authService.setAuthorizedEmail(this.customAuthorizedEmail);
+  }
+
+  async onSignIn() {
+    await this.authService.login();
+    if (this.authService.isAuthenticated()) {
+      await this.syncService.syncNow();
+      await this.onLoadDriveBackups();
+    }
+  }
+
+  async onSignOut() {
+    await this.authService.logout();
+    this.driveBackups.set([]);
+  }
+
+  async onSyncNow() {
+    await this.syncService.syncNow();
+    await this.refreshStats();
+  }
+
+  async onBackupToDrive() {
+    await this.backupService.backupToDrive();
+    await this.onLoadDriveBackups();
+  }
+
+  async onLoadDriveBackups() {
+    const list = await this.backupService.listDriveBackups();
+    this.driveBackups.set(list);
+  }
+
+  async onRestoreFromDrive(fileId: string) {
+    if (confirm('Restoring this backup will replace current local reminders. Do you want to proceed?')) {
+      await this.backupService.restoreFromDrive(fileId);
+      await this.refreshStats();
+    }
+  }
+
+  async onExportLocalJson() {
+    await this.backupService.exportLocalJson();
+  }
+
+  async onImportLocalJson(event: Event) {
+    const input = event.target as HTMLInputElement;
+    if (input.files && input.files.length > 0) {
+      const file = input.files[0];
+      if (confirm(`Import ${file.name}? This will restore data into your local database.`)) {
+        await this.backupService.importLocalJson(file);
+        await this.refreshStats();
+      }
+      input.value = '';
+    }
   }
 
   async onRequestPermission() {
@@ -399,4 +680,3 @@ export class SettingsComponent implements OnInit {
     }
   }
 }
-

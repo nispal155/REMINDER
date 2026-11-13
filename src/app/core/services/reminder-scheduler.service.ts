@@ -136,6 +136,16 @@ export class ReminderSchedulerService implements OnDestroy {
   }
 
   /**
+   * Rebuild all notification jobs from a full list of reminders (e.g. after restore)
+   */
+  async rebuildAllJobs(reminders: Reminder[]): Promise<void> {
+    await this.jobRepo.clear();
+    for (const r of reminders) {
+      await this.scheduleJobsForReminder(r);
+    }
+  }
+
+  /**
    * Process and dispatch due notifications from IndexedDB
    */
   async processDueNotificationJobs(): Promise<void> {
