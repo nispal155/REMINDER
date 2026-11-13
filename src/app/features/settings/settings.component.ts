@@ -4,6 +4,7 @@ import { SettingsService } from './settings.service';
 import { ThemeService } from '../../core/services/theme.service';
 import { IndexedDbService } from '../../core/services/indexed-db.service';
 import { PwaInstallService } from '../../core/services/pwa-install.service';
+import { NotificationService } from '../../core/services/notification.service';
 import { CardComponent } from '../../shared/components/card/card.component';
 import { ButtonComponent } from '../../shared/components/button/button.component';
 import { AppTheme, CalendarType } from '../../core/models/settings.model';
@@ -98,6 +99,136 @@ import { AppTheme, CalendarType } from '../../core/models/settings.model';
               <p class="text-[11px] text-slate-500 dark:text-slate-400">Standard English Calendar</p>
             </div>
           </button>
+        </div>
+      </app-card>
+
+      <!-- Notifications & Alert Engine -->
+      <app-card>
+        <div class="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-slate-800">
+          <div>
+            <h3 class="text-base font-bold text-slate-900 dark:text-white">Notifications & Alerts</h3>
+            <p class="text-xs text-slate-500 dark:text-slate-400">
+              Offline alarm engine using Web Notifications and Service Worker actions.
+            </p>
+          </div>
+
+          <!-- Permission Status Badge -->
+          <div class="flex items-center space-x-2">
+            @switch (notificationService.permissionState()) {
+              @case ('granted') {
+                <span class="inline-flex items-center space-x-1 px-2.5 py-1 rounded-full text-xs font-bold bg-emerald-50 dark:bg-emerald-950/70 text-emerald-600 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-800">
+                  <span class="w-2 h-2 rounded-full bg-emerald-500"></span>
+                  <span>Permission Granted</span>
+                </span>
+              }
+              @case ('denied') {
+                <span class="inline-flex items-center space-x-1 px-2.5 py-1 rounded-full text-xs font-bold bg-rose-50 dark:bg-rose-950/70 text-rose-600 dark:text-rose-400 border border-rose-200 dark:border-rose-800">
+                  <span class="w-2 h-2 rounded-full bg-rose-500"></span>
+                  <span>Blocked in Browser</span>
+                </span>
+              }
+              @case ('default') {
+                <app-button variant="primary" size="sm" (clicked)="onRequestPermission()">
+                  Enable Notifications
+                </app-button>
+              }
+              @case ('unsupported') {
+                <span class="text-xs text-slate-400">Notifications Unsupported</span>
+              }
+            }
+          </div>
+        </div>
+
+        <div class="space-y-4 pt-4">
+          <!-- Master Switch & Sound/Vibration -->
+          <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+            <label class="flex items-center justify-between p-3 rounded-xl border border-slate-200/80 dark:border-slate-800 bg-white dark:bg-slate-800/60 cursor-pointer">
+              <span class="text-xs font-bold text-slate-800 dark:text-slate-200">Enable Alerts</span>
+              <input
+                type="checkbox"
+                [checked]="settingsService.settings().notificationsEnabled"
+                (change)="settingsService.updateNotificationsEnabled(!settingsService.settings().notificationsEnabled)"
+                class="h-4 w-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
+              />
+            </label>
+
+            <label class="flex items-center justify-between p-3 rounded-xl border border-slate-200/80 dark:border-slate-800 bg-white dark:bg-slate-800/60 cursor-pointer">
+              <span class="text-xs font-bold text-slate-800 dark:text-slate-200">Alert Sound</span>
+              <input
+                type="checkbox"
+                [checked]="settingsService.settings().notificationSound"
+                (change)="settingsService.updateNotificationSound(!settingsService.settings().notificationSound)"
+                class="h-4 w-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
+              />
+            </label>
+
+            <label class="flex items-center justify-between p-3 rounded-xl border border-slate-200/80 dark:border-slate-800 bg-white dark:bg-slate-800/60 cursor-pointer">
+              <span class="text-xs font-bold text-slate-800 dark:text-slate-200">Vibration</span>
+              <input
+                type="checkbox"
+                [checked]="settingsService.settings().notificationVibration"
+                (change)="settingsService.updateNotificationVibration(!settingsService.settings().notificationVibration)"
+                class="h-4 w-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
+              />
+            </label>
+          </div>
+
+          <!-- Quiet Hours -->
+          <div class="p-3.5 rounded-xl border border-slate-200/80 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-800/30 space-y-3">
+            <div class="flex items-center justify-between">
+              <div>
+                <h4 class="text-xs font-bold text-slate-800 dark:text-slate-200 uppercase tracking-wider">
+                  🌙 Quiet Hours (Do Not Disturb)
+                </h4>
+                <p class="text-[11px] text-slate-500 dark:text-slate-400">
+                  Silence or defer notifications during night hours (e.g. 10:00 PM to 07:00 AM).
+                </p>
+              </div>
+              <input
+                type="checkbox"
+                [checked]="settingsService.settings().quietHours.enabled"
+                (change)="onToggleQuietHours()"
+                class="h-4 w-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500 cursor-pointer"
+              />
+            </div>
+
+            @if (settingsService.settings().quietHours.enabled) {
+              <div class="grid grid-cols-2 gap-3 pt-2">
+                <div>
+                  <label class="block text-[11px] font-semibold text-slate-600 dark:text-slate-400 mb-1">
+                    Start Time
+                  </label>
+                  <input
+                    type="time"
+                    [value]="settingsService.settings().quietHours.startTime"
+                    (change)="onQuietHoursTimeChange($event, 'start')"
+                    class="w-full px-3 py-1.5 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-xs text-slate-900 dark:text-white"
+                  />
+                </div>
+                <div>
+                  <label class="block text-[11px] font-semibold text-slate-600 dark:text-slate-400 mb-1">
+                    End Time
+                  </label>
+                  <input
+                    type="time"
+                    [value]="settingsService.settings().quietHours.endTime"
+                    (change)="onQuietHoursTimeChange($event, 'end')"
+                    class="w-full px-3 py-1.5 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-xs text-slate-900 dark:text-white"
+                  />
+                </div>
+              </div>
+            }
+          </div>
+
+          <!-- Test Notification Trigger -->
+          <div class="pt-1 flex items-center justify-between">
+            <span class="text-xs text-slate-500 dark:text-slate-400">
+              Verify your browser's audio and alert capabilities:
+            </span>
+            <app-button variant="secondary" size="sm" (clicked)="onSendTestNotification()">
+              🔔 Send Test Alert
+            </app-button>
+          </div>
         </div>
       </app-card>
 
@@ -204,6 +335,7 @@ export class SettingsComponent implements OnInit {
   readonly settingsService = inject(SettingsService);
   readonly themeService = inject(ThemeService);
   readonly pwaInstall = inject(PwaInstallService);
+  readonly notificationService = inject(NotificationService);
   private readonly indexedDbService = inject(IndexedDbService);
 
   readonly dbStats = signal<any>(null);
@@ -211,6 +343,41 @@ export class SettingsComponent implements OnInit {
 
   async ngOnInit() {
     await this.refreshStats();
+  }
+
+  async onRequestPermission() {
+    await this.notificationService.requestPermission();
+  }
+
+  async onToggleQuietHours() {
+    const cur = this.settingsService.settings().quietHours;
+    await this.settingsService.updateQuietHours({
+      ...cur,
+      enabled: !cur.enabled
+    });
+  }
+
+  async onQuietHoursTimeChange(event: Event, type: 'start' | 'end') {
+    const input = event.target as HTMLInputElement;
+    const cur = this.settingsService.settings().quietHours;
+    if (type === 'start') {
+      await this.settingsService.updateQuietHours({ ...cur, startTime: input.value });
+    } else {
+      await this.settingsService.updateQuietHours({ ...cur, endTime: input.value });
+    }
+  }
+
+  async onSendTestNotification() {
+    if (this.notificationService.permissionState() !== 'granted') {
+      const state = await this.notificationService.requestPermission();
+      if (state !== 'granted') return;
+    }
+
+    await this.notificationService.showNotification('🔔 Test Notification', {
+      body: 'REMINDER notification engine is functioning offline with sound and vibration!',
+      soundEnabled: this.settingsService.settings().notificationSound,
+      vibrationEnabled: this.settingsService.settings().notificationVibration
+    });
   }
 
   async refreshStats() {

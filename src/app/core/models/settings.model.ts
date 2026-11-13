@@ -1,4 +1,5 @@
 import { Priority } from './reminder.model';
+import { QuietHoursConfig } from './notification.model';
 
 export type AppTheme = 'light' | 'dark' | 'system';
 export type CalendarType = 'BS' | 'AD';
@@ -9,7 +10,11 @@ export interface AppSettings {
   defaultCalendar: CalendarType;
   defaultPriority: Priority;
   weekStartDay: WeekStartDay;
+  notificationsEnabled: boolean;
   notificationSound: boolean;
+  notificationVibration: boolean;
+  defaultLeadTime: number; // e.g. 15
+  quietHours: QuietHoursConfig;
   autoSyncOnWifiOnly: boolean;
   lastBackupDate?: string;
 }
@@ -18,4 +23,3 @@ export interface SettingRecord {
   key: string;
   value: unknown;
 }
-

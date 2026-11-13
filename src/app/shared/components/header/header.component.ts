@@ -2,6 +2,7 @@ import { Component, inject, output } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { ThemeService } from '../../../core/services/theme.service';
 import { PwaInstallService } from '../../../core/services/pwa-install.service';
+import { NotificationService } from '../../../core/services/notification.service';
 import { ButtonComponent } from '../button/button.component';
 
 @Component({
@@ -46,6 +47,19 @@ import { ButtonComponent } from '../button/button.component';
             </button>
           }
 
+          <!-- Notification Permission Prompt (shown if not prompted yet) -->
+          @if (notificationService.permissionState() === 'default') {
+            <button
+              type="button"
+              (click)="notificationService.requestPermission()"
+              class="hidden sm:inline-flex items-center space-x-1 px-2.5 py-1.5 text-xs font-semibold rounded-xl bg-indigo-50 dark:bg-indigo-950/70 text-indigo-600 dark:text-indigo-400 border border-indigo-200 dark:border-indigo-800 hover:bg-indigo-100 cursor-pointer"
+              title="Enable notifications"
+            >
+              <span>🔔</span>
+              <span>Enable Alerts</span>
+            </button>
+          }
+
           <!-- Theme Toggle -->
           <button
             type="button"
@@ -85,6 +99,7 @@ import { ButtonComponent } from '../button/button.component';
 export class HeaderComponent {
   readonly themeService = inject(ThemeService);
   readonly pwaInstall = inject(PwaInstallService);
+  readonly notificationService = inject(NotificationService);
   openQuickAdd = output<void>();
 
   toggleTheme() {

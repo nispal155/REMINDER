@@ -1,5 +1,6 @@
 import { Injectable, inject, signal } from '@angular/core';
 import { AppSettings, AppTheme, CalendarType, WeekStartDay } from '../../core/models/settings.model';
+import { QuietHoursConfig } from '../../core/models/notification.model';
 import { SettingsRepository } from '../../database/repositories/settings.repository';
 import { ThemeService } from '../../core/services/theme.service';
 import { ToastService } from '../../core/services/toast.service';
@@ -19,7 +20,16 @@ export class SettingsService {
     defaultCalendar: 'BS',
     defaultPriority: 'medium',
     weekStartDay: 'sunday',
+    notificationsEnabled: true,
     notificationSound: true,
+    notificationVibration: true,
+    defaultLeadTime: 15,
+    quietHours: {
+      enabled: false,
+      startTime: '22:00',
+      endTime: '07:00',
+      mode: 'silent'
+    },
     autoSyncOnWifiOnly: true
   });
 
@@ -33,7 +43,16 @@ export class SettingsService {
       const defaultCalendar = await this.settingsRepo.getSetting<CalendarType>('defaultCalendar', 'BS');
       const defaultPriority = await this.settingsRepo.getSetting<any>('defaultPriority', 'medium');
       const weekStartDay = await this.settingsRepo.getSetting<WeekStartDay>('weekStartDay', 'sunday');
+      const notificationsEnabled = await this.settingsRepo.getSetting<boolean>('notificationsEnabled', true);
       const notificationSound = await this.settingsRepo.getSetting<boolean>('notificationSound', true);
+      const notificationVibration = await this.settingsRepo.getSetting<boolean>('notificationVibration', true);
+      const defaultLeadTime = await this.settingsRepo.getSetting<number>('defaultLeadTime', 15);
+      const quietHours = await this.settingsRepo.getSetting<QuietHoursConfig>('quietHours', {
+        enabled: false,
+        startTime: '22:00',
+        endTime: '07:00',
+        mode: 'silent'
+      });
       const autoSyncOnWifiOnly = await this.settingsRepo.getSetting<boolean>('autoSyncOnWifiOnly', true);
       const lastBackupDate = await this.settingsRepo.getSetting<string | undefined>('lastBackupDate', undefined);
 
@@ -42,7 +61,11 @@ export class SettingsService {
         defaultCalendar,
         defaultPriority,
         weekStartDay,
+        notificationsEnabled,
         notificationSound,
+        notificationVibration,
+        defaultLeadTime,
+        quietHours,
         autoSyncOnWifiOnly,
         lastBackupDate
       });
@@ -63,6 +86,30 @@ export class SettingsService {
     this.toast.info(`Default calendar set to ${defaultCalendar}`);
   }
 
+  async updateNotificationsEnabled(enabled: boolean): Promise<void> {
+    await this.settingsRepo.setSetting('notificationsEnabled', enabled);
+    this.settings.update(s => ({ ...s, notificationsEnabled: enabled }));
+    this.toast.info(enabled ? 'Notifications enabled' : 'Notifications disabled');
+  }
+
+  async updateNotificationSound(sound: boolean): Promise<void> {
+    await this.settingsRepo.setSetting('notificationSound', sound);
+    this.settings.update(s => ({ ...s, notificationSound: sound }));
+    this.toast.info(sound ? 'Notification sound enabled' : 'Notification sound muted');
+  }
+
+  async updateNotificationVibration(vibration: boolean): Promise<void> {
+    await this.settingsRepo.setSetting('notificationVibration', vibration);
+    this.settings.update(s => ({ ...s, notificationVibration: vibration }));
+    this.toast.info(vibration ? 'Notification vibration enabled' : 'Notification vibration disabled');
+  }
+
+  async updateQuietHours(quietHours: QuietHoursConfig): Promise<void> {
+    await this.settingsRepo.setSetting('quietHours', quietHours);
+    this.settings.update(s => ({ ...s, quietHours }));
+    this.toast.info('Quiet hours updated');
+  }
+
   async seedDemoData(): Promise<void> {
     await this.indexedDbService.seedDemoData();
     this.toast.success('Sample demo data loaded successfully!');
@@ -73,4 +120,3 @@ export class SettingsService {
     this.toast.warning('All local data cleared');
   }
 }
-

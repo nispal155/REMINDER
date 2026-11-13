@@ -208,6 +208,35 @@ import { BS_MONTHS } from '../../../../core/models/calendar.model';
         </div>
       </div>
 
+      <!-- Multiple Notification Schedule -->
+      <div class="p-3 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200/80 dark:border-slate-800 space-y-2">
+        <label class="block text-xs font-bold text-slate-800 dark:text-slate-200 uppercase tracking-wider">
+          🔔 Notification Alert Times (Multi-select)
+        </label>
+        <p class="text-[11px] text-slate-500 dark:text-slate-400">
+          Choose when to be alerted. You can select multiple lead times (e.g. 1 day before + 1 hour before + at time).
+        </p>
+
+        <div class="flex flex-wrap gap-1.5 pt-1">
+          @for (lead of presetLeadTimes; track lead.minutes) {
+            <button
+              type="button"
+              (click)="toggleLeadTime(lead.minutes)"
+              [class.bg-indigo-600]="isLeadTimeSelected(lead.minutes)"
+              [class.text-white]="isLeadTimeSelected(lead.minutes)"
+              [class.shadow-sm]="isLeadTimeSelected(lead.minutes)"
+              [class.bg-white]="!isLeadTimeSelected(lead.minutes)"
+              [class.dark:bg-slate-800]="!isLeadTimeSelected(lead.minutes)"
+              [class.text-slate-700]="!isLeadTimeSelected(lead.minutes)"
+              [class.dark:text-slate-300]="!isLeadTimeSelected(lead.minutes)"
+              class="px-2.5 py-1 text-xs font-semibold rounded-lg transition-all cursor-pointer border border-slate-200 dark:border-slate-700 hover:border-indigo-400"
+            >
+              {{ lead.label }}
+            </button>
+          }
+        </div>
+      </div>
+
       <!-- Actions -->
       <div class="flex items-center justify-end space-x-2 pt-3 border-t border-slate-100 dark:border-slate-800">
         <app-button variant="ghost" size="sm" type="button" (clicked)="cancelled.emit()">
@@ -235,6 +264,10 @@ export class ReminderFormComponent implements OnInit {
     priority: Priority;
     category: ReminderCategory | string;
     repeatType: RepeatType;
+    notificationSchedule?: {
+      remindAtTime: boolean;
+      minutesBefore: number[];
+    };
   }>();
   cancelled = output<void>();
 
@@ -242,6 +275,17 @@ export class ReminderFormComponent implements OnInit {
   readonly bsMonths = BS_MONTHS;
   readonly bsYears: number[] = [];
   readonly calendarMode = signal<CalendarInputMode>('BS');
+  readonly presetLeadTimes = [
+    { label: 'At event time', minutes: 0 },
+    { label: '5m before', minutes: 5 },
+    { label: '10m before', minutes: 10 },
+    { label: '15m before', minutes: 15 },
+    { label: '30m before', minutes: 30 },
+    { label: '1 hour before', minutes: 60 },
+    { label: '1 day before', minutes: 1440 },
+    { label: '7 days before', minutes: 10080 }
+  ];
+  readonly selectedLeadTimes = signal<number[]>([0, 15]);
 
   readonly availableBsDays = signal<number[]>([]);
   readonly equivalentAdDisplay = signal<string>('');
@@ -284,6 +328,9 @@ export class ReminderFormComponent implements OnInit {
       });
       if (existing.calendarMode) {
         this.calendarMode.set(existing.calendarMode);
+      }
+      if (existing.notificationSchedule?.minutesBefore) {
+        this.selectedLeadTimes.set(existing.notificationSchedule.minutesBefore);
       }
     } else {
       // Initialize with today's live dates
@@ -359,6 +406,22 @@ export class ReminderFormComponent implements OnInit {
     this.equivalentBsDisplay.set(this.nepaliCalendar.formatBsPretty(bsDate));
   }
 
+  toggleLeadTime(minutes: number) {
+    const current = this.selectedLeadTimes();
+    if (current.includes(minutes)) {
+      // Don't allow empty, at least keep one
+      if (current.length > 1) {
+        this.selectedLeadTimes.set(current.filter(m => m !== minutes));
+      }
+    } else {
+      this.selectedLeadTimes.set([...current, minutes].sort((a, b) => a - b));
+    }
+  }
+
+  isLeadTimeSelected(minutes: number): boolean {
+    return this.selectedLeadTimes().includes(minutes);
+  }
+
   onSubmit() {
     if (this.form.invalid) return;
     const val = this.form.value;
@@ -379,7 +442,12 @@ export class ReminderFormComponent implements OnInit {
       time: val.time!,
       priority: val.priority as Priority,
       category: val.category!,
-      repeatType: val.repeatType as RepeatType
+      repeatType: val.repeatType as RepeatType,
+      notificationSchedule: {
+        remindAtTime: this.selectedLeadTimes().includes(0),
+        minutesBefore: this.selectedLeadTimes()
+      }
     });
   }
 }
+

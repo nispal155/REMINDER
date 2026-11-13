@@ -13,6 +13,7 @@ import { ReminderRepository } from '../../database/repositories/reminder.reposit
 import { IndexedDbService } from '../../core/services/indexed-db.service';
 import { ToastService } from '../../core/services/toast.service';
 import { NepaliCalendarService } from '../../core/services/nepali-calendar.service';
+import { ReminderSchedulerService } from '../../core/services/reminder-scheduler.service';
 
 export interface CreateReminderDTO {
   title: string;
@@ -41,6 +42,7 @@ export class ReminderService {
   private readonly indexedDbService = inject(IndexedDbService);
   private readonly toast = inject(ToastService);
   private readonly nepaliCalendar = inject(NepaliCalendarService);
+  private readonly scheduler = inject(ReminderSchedulerService);
 
   readonly allReminders = signal<Reminder[]>([]);
   readonly isLoading = signal<boolean>(false);
@@ -228,6 +230,7 @@ export class ReminderService {
     };
 
     await this.reminderRepo.create(newReminder);
+    await this.scheduler.scheduleJobsForReminder(newReminder);
     this.toast.success(`Reminder "${newReminder.title}" saved!`);
     return newReminder;
   }
@@ -240,6 +243,10 @@ export class ReminderService {
       ...changes,
       updatedAt: new Date().toISOString()
     });
+    const updated = await this.reminderRepo.getById(id);
+    if (updated) {
+      await this.scheduler.scheduleJobsForReminder(updated);
+    }
     this.toast.success('Reminder updated');
   }
 
@@ -257,6 +264,7 @@ export class ReminderService {
         completedAt: new Date().toISOString(),
         updatedAt: new Date().toISOString()
       });
+      await this.scheduler.cancelJobsForReminder(reminder.id);
       this.toast.info(`Completed "${reminder.title}"`);
 
       // Check for recurring repeat rule
@@ -275,6 +283,10 @@ export class ReminderService {
       completedAt: undefined,
       updatedAt: new Date().toISOString()
     });
+    const reopened = await this.reminderRepo.getById(id);
+    if (reopened) {
+      await this.scheduler.scheduleJobsForReminder(reopened);
+    }
     this.toast.info('Reminder reopened');
   }
 
@@ -293,6 +305,7 @@ export class ReminderService {
       updatedAt: new Date().toISOString()
     };
     await this.reminderRepo.create(duplicated);
+    await this.scheduler.scheduleJobsForReminder(duplicated);
     this.toast.success(`Duplicated "${reminder.title}"`);
     return duplicated;
   }
@@ -302,6 +315,7 @@ export class ReminderService {
    */
   async deleteReminder(id: string): Promise<void> {
     await this.reminderRepo.delete(id);
+    await this.scheduler.cancelJobsForReminder(id);
     this.toast.info('Reminder deleted');
   }
 
@@ -354,6 +368,11 @@ export class ReminderService {
       snoozedUntil: snoozedUntilDate.toISOString(),
       updatedAt: new Date().toISOString()
     });
+
+    const snoozedRem = await this.reminderRepo.getById(reminder.id);
+    if (snoozedRem) {
+      await this.scheduler.scheduleJobsForReminder(snoozedRem);
+    }
 
     this.toast.info(`Snoozed until ${newTime}`);
   }

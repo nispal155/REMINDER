@@ -1,4 +1,4 @@
-import { Component, input, output } from '@angular/core';
+import { Component, input, output, computed } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { Reminder, Priority } from '../../../../core/models/reminder.model';
 import { CardComponent } from '../../../../shared/components/card/card.component';
@@ -78,6 +78,13 @@ import { CardComponent } from '../../../../shared/components/card/card.component
                   <span class="capitalize">{{ formatRepeatType(reminder().repeatType) }}</span>
                 </span>
               }
+
+              @if (nextNotification()) {
+                <span class="inline-flex items-center space-x-1 px-2 py-0.5 rounded bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 text-[11px] font-semibold border border-emerald-200/60 dark:border-emerald-800/60">
+                  <span>🔔 Next alert:</span>
+                  <span>{{ nextNotification() }}</span>
+                </span>
+              }
             </div>
           </div>
         </div>
@@ -144,6 +151,36 @@ export class ReminderCardComponent {
   duplicateClicked = output<Reminder>();
   deleteClicked = output<Reminder>();
 
+  readonly nextNotification = computed<string | null>(() => {
+    const r = this.reminder();
+    if (r.status === 'completed' || r.status === 'dismissed') return null;
+
+    const leadTimes = r.notificationSchedule?.minutesBefore || [0];
+    const parts = r.dateAD.split('-').map(Number);
+    const timeParts = r.time.split(':').map(Number);
+    const eventTime = new Date(parts[0], parts[1] - 1, parts[2], timeParts[0], timeParts[1]).getTime();
+    const now = Date.now();
+
+    const futureAlertTimes = leadTimes
+      .map(m => eventTime - m * 60 * 1000)
+      .filter(t => t > now)
+      .sort((a, b) => a - b);
+
+    if (futureAlertTimes.length === 0) return null;
+    const nextTime = new Date(futureAlertTimes[0]);
+    const nowDate = new Date();
+    const timeStr = nextTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+
+    if (nextTime.toDateString() === nowDate.toDateString()) {
+      return `Today at ${timeStr}`;
+    }
+    const tomorrow = new Date(nowDate.getFullYear(), nowDate.getMonth(), nowDate.getDate() + 1);
+    if (nextTime.toDateString() === tomorrow.toDateString()) {
+      return `Tomorrow at ${timeStr}`;
+    }
+    return `${nextTime.toLocaleDateString([], { month: 'short', day: 'numeric' })} at ${timeStr}`;
+  });
+
   getPriorityClasses(priority: Priority): string {
     switch (priority) {
       case 'urgent': return 'bg-rose-100 dark:bg-rose-950/80 text-rose-700 dark:text-rose-300';
@@ -161,3 +198,4 @@ export class ReminderCardComponent {
     }
   }
 }
+

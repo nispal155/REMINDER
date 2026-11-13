@@ -92,3 +92,4 @@ export class DayViewComponent {
 
   addReminderClicked = output<CalendarDayCell>();
 }
+

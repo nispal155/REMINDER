@@ -52,3 +52,4 @@ console.log('✓ Festival on Baisakh 1:', f1?.name);
 if (!f1) throw new Error('Expected festival on Baisakh 1');
 
 console.log('All Nepali calendar conversion tests passed with 100% accuracy!');
+

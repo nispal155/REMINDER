@@ -84,3 +84,4 @@ export class MonthViewComponent {
 
   readonly weekdays = WEEKDAYS;
 }
+
