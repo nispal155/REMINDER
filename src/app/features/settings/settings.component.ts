@@ -30,44 +30,48 @@ import { DriveFileItem } from '../../core/services/google-drive.service';
 
       <!-- Appearance -->
       <app-card>
-        <h3 class="text-base font-bold text-slate-900 dark:text-white mb-1">Appearance & Theme</h3>
-        <p class="text-xs text-slate-500 dark:text-slate-400 mb-4">Choose between light, dark, or system matching theme.</p>
+        <h3 class="text-base font-bold text-[#142536] dark:text-white mb-1">ASTRA Theme & Appearance</h3>
+        <p class="text-xs text-[#566B7E] dark:text-[#ABDAF0]/70 mb-4">Choose between light, dark (Midnight Navy), or system matching theme.</p>
         
         <div class="grid grid-cols-3 gap-3">
           <button
             type="button"
             (click)="settingsService.updateTheme('light')"
-            [class.border-indigo-600]="settingsService.settings().theme === 'light'"
+            [class.border-[#1166B3]]="settingsService.settings().theme === 'light'"
             [class.ring-2]="settingsService.settings().theme === 'light'"
-            [class.ring-indigo-600]="settingsService.settings().theme === 'light'"
-            class="flex flex-col items-center justify-center p-3.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-800/80 hover:bg-slate-50 dark:hover:bg-slate-800 transition-all cursor-pointer"
+            [class.ring-[#1166B3]]="settingsService.settings().theme === 'light'"
+            class="flex flex-col items-center justify-center p-3.5 rounded-xl border border-[#D9E4EC] dark:border-[#365874] bg-white dark:bg-[#1B2E40] hover:bg-[#F5F8FC] dark:hover:bg-[#1F384F] transition-all cursor-pointer"
           >
             <span class="text-2xl mb-1.5">☀️</span>
-            <span class="text-xs font-semibold text-slate-800 dark:text-slate-200">Light</span>
+            <span class="text-xs font-bold text-[#142536] dark:text-white">Light</span>
           </button>
 
           <button
             type="button"
             (click)="settingsService.updateTheme('dark')"
-            [class.border-indigo-600]="settingsService.settings().theme === 'dark'"
+            [class.border-[#1166B3]]="settingsService.settings().theme === 'dark'"
+            [class.dark:border-[#7DC0E5]]="settingsService.settings().theme === 'dark'"
             [class.ring-2]="settingsService.settings().theme === 'dark'"
-            [class.ring-indigo-600]="settingsService.settings().theme === 'dark'"
-            class="flex flex-col items-center justify-center p-3.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-800/80 hover:bg-slate-50 dark:hover:bg-slate-800 transition-all cursor-pointer"
+            [class.ring-[#1166B3]]="settingsService.settings().theme === 'dark'"
+            [class.dark:ring-[#7DC0E5]]="settingsService.settings().theme === 'dark'"
+            class="flex flex-col items-center justify-center p-3.5 rounded-xl border border-[#D9E4EC] dark:border-[#365874] bg-white dark:bg-[#1B2E40] hover:bg-[#F5F8FC] dark:hover:bg-[#1F384F] transition-all cursor-pointer"
           >
             <span class="text-2xl mb-1.5">🌙</span>
-            <span class="text-xs font-semibold text-slate-800 dark:text-slate-200">Dark</span>
+            <span class="text-xs font-bold text-[#142536] dark:text-white">Midnight Dark</span>
           </button>
 
           <button
             type="button"
             (click)="settingsService.updateTheme('system')"
-            [class.border-indigo-600]="settingsService.settings().theme === 'system'"
+            [class.border-[#1166B3]]="settingsService.settings().theme === 'system'"
+            [class.dark:border-[#7DC0E5]]="settingsService.settings().theme === 'system'"
             [class.ring-2]="settingsService.settings().theme === 'system'"
-            [class.ring-indigo-600]="settingsService.settings().theme === 'system'"
-            class="flex flex-col items-center justify-center p-3.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-800/80 hover:bg-slate-50 dark:hover:bg-slate-800 transition-all cursor-pointer"
+            [class.ring-[#1166B3]]="settingsService.settings().theme === 'system'"
+            [class.dark:ring-[#7DC0E5]]="settingsService.settings().theme === 'system'"
+            class="flex flex-col items-center justify-center p-3.5 rounded-xl border border-[#D9E4EC] dark:border-[#365874] bg-white dark:bg-[#1B2E40] hover:bg-[#F5F8FC] dark:hover:bg-[#1F384F] transition-all cursor-pointer"
           >
             <span class="text-2xl mb-1.5">💻</span>
-            <span class="text-xs font-semibold text-slate-800 dark:text-slate-200">System</span>
+            <span class="text-xs font-bold text-[#142536] dark:text-white">System Sync</span>
           </button>
         </div>
       </app-card>

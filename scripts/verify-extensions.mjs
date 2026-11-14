@@ -150,3 +150,4 @@ console.log(`✓ Expense forecast computed: Total Due: Rs ${totalDue}, Paid: Rs 
 console.log('\n==================================================');
 console.log('ALL ADVANCED EXTENSION & POWER-UP SUITES PASSED! ✨');
 console.log('==================================================\n');
+

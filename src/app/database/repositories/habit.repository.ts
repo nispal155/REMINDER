@@ -49,3 +49,4 @@ export class HabitRepository extends BaseRepository<Habit, string> {
     return habit;
   }
 }
+

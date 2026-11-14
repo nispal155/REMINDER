@@ -8,3 +8,4 @@ export interface Habit {
   createdAt: string;
   updatedAt: string;
 }
+

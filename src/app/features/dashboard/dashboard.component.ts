@@ -35,12 +35,12 @@ import { FestivalInfo } from '../../core/models/calendar.model';
     <div class="space-y-6">
       
       <!-- Greeting & Real-time Dual Calendar Banner -->
-      <div class="relative overflow-hidden rounded-3xl bg-gradient-to-br from-indigo-600 via-indigo-700 to-violet-800 p-6 sm:p-8 text-white shadow-xl shadow-indigo-600/15">
+      <div class="relative overflow-hidden rounded-3xl bg-gradient-to-br from-[#1B2E40] via-[#27465F] to-[#1166B3] p-6 sm:p-8 text-white shadow-xl shadow-[#1166B3]/20 border border-[#365874]">
         <div class="relative z-10 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
           <div>
-            <div class="inline-flex items-center space-x-2 px-3 py-1 rounded-full bg-white/15 backdrop-blur-md text-xs font-semibold mb-3">
-              <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
-              <span>{{ currentTime() }}</span>
+            <div class="inline-flex items-center space-x-2 px-3 py-1 rounded-full bg-white/15 backdrop-blur-md text-xs font-semibold mb-3 border border-[#ABDAF0]/30">
+              <span class="w-2 h-2 rounded-full bg-[#7DC0E5] animate-pulse"></span>
+              <span class="text-[#ABDAF0]">{{ currentTime() }}</span>
             </div>
             
             <h2 class="text-2xl sm:text-3xl font-black tracking-tight">
@@ -48,10 +48,10 @@ import { FestivalInfo } from '../../core/models/calendar.model';
             </h2>
 
             <!-- Real Dual Calendar Date -->
-            <p class="text-indigo-100 text-sm sm:text-base mt-1 flex flex-wrap items-center gap-1.5">
+            <p class="text-[#ABDAF0] text-sm sm:text-base mt-1 flex flex-wrap items-center gap-1.5 font-medium">
               <span>{{ formattedDate() }}</span>
-              <span class="opacity-60">|</span>
-              <span class="text-indigo-200 font-bold bg-white/10 px-2 py-0.5 rounded-md">
+              <span class="opacity-60 text-white/50">|</span>
+              <span class="text-white font-bold bg-white/10 px-2 py-0.5 rounded-md border border-white/10">
                 🇳🇵 {{ nepaliDateDisplay() }}
               </span>
             </p>
@@ -77,12 +77,12 @@ import { FestivalInfo } from '../../core/models/calendar.model';
         </div>
 
         <!-- Decorative background elements -->
-        <div class="absolute -right-10 -bottom-10 w-48 h-48 rounded-full bg-white/10 blur-2xl pointer-events-none"></div>
-        <div class="absolute -left-10 -top-10 w-48 h-48 rounded-full bg-indigo-500/20 blur-2xl pointer-events-none"></div>
+        <div class="absolute -right-10 -bottom-10 w-48 h-48 rounded-full bg-[#7DC0E5]/15 blur-2xl pointer-events-none"></div>
+        <div class="absolute -left-10 -top-10 w-48 h-48 rounded-full bg-[#1166B3]/25 blur-2xl pointer-events-none"></div>
       </div>
 
       <!-- Natural Language Quick-Add Bar -->
-      <div class="p-3 sm:p-4 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 shadow-sm">
+      <div class="p-3 sm:p-4 rounded-2xl bg-white dark:bg-[#27465F] border border-[#D9E4EC] dark:border-[#365874] shadow-sm">
         <form (ngSubmit)="handleQuickAdd()" class="flex items-center gap-2">
           <div class="relative flex-1">
             <span class="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400">
@@ -93,14 +93,14 @@ import { FestivalInfo } from '../../core/models/calendar.model';
               [(ngModel)]="quickAddInput"
               [ngModelOptions]="{standalone: true}"
               placeholder="Natural Language Quick Add (e.g. 'Pay wifi bill Rs 1500 tomorrow at 6pm @home')"
-              class="w-full pl-10 pr-10 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/80 text-sm text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+              class="w-full pl-10 pr-10 py-2.5 rounded-xl border border-[#D9E4EC] dark:border-[#365874] bg-[#F5F8FC] dark:bg-[#1B2E40] text-sm text-[#142536] dark:text-white placeholder-[#566B7E]/60 dark:placeholder-[#ABDAF0]/50 focus:outline-none focus:ring-2 focus:ring-[#1166B3]"
             />
             @if (voiceService.isSupported()) {
               <button
                 type="button"
                 (click)="dictateQuickAdd()"
                 [class.text-rose-500]="voiceService.isListening()"
-                class="absolute inset-y-0 right-0 pr-3 flex items-center text-slate-400 hover:text-indigo-600 cursor-pointer"
+                class="absolute inset-y-0 right-0 pr-3 flex items-center text-slate-400 hover:text-[#1166B3] cursor-pointer"
                 title="Speak to dictate"
               >
                 🎙️

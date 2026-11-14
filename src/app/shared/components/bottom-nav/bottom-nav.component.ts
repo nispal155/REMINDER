@@ -13,14 +13,14 @@ interface NavItem {
   standalone: true,
   imports: [CommonModule, RouterModule],
   template: `
-    <nav class="md:hidden fixed bottom-0 left-0 right-0 z-40 bg-white/90 dark:bg-[#090d16]/90 backdrop-blur-lg border-t border-slate-200 dark:border-slate-800/80 px-2 py-1 safe-area-bottom">
+    <nav class="md:hidden fixed bottom-0 left-0 right-0 z-40 bg-[#FFFFFF]/95 dark:bg-[#1B2E40]/95 backdrop-blur-lg border-t border-[#D9E4EC] dark:border-[#365874] px-2 py-1 safe-area-bottom transition-colors duration-200">
       <div class="flex items-center justify-around">
         @for (item of navItems; track item.route) {
           <a
             [routerLink]="item.route"
-            routerLinkActive="text-indigo-600 dark:text-indigo-400 font-semibold"
+            routerLinkActive="text-[#1166B3] dark:text-[#ABDAF0] font-bold"
             [routerLinkActiveOptions]="{ exact: item.route === '/dashboard' }"
-            class="flex flex-col items-center justify-center py-1.5 px-3 min-w-[56px] text-slate-500 dark:text-slate-400 hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors rounded-xl"
+            class="flex flex-col items-center justify-center py-1.5 px-3 min-w-[56px] text-[#566B7E] dark:text-[#ABDAF0]/70 hover:text-[#1166B3] dark:hover:text-[#ABDAF0] transition-colors rounded-xl"
           >
             <!-- Icons -->
             <div class="h-6 w-6 flex items-center justify-center">
@@ -69,4 +69,3 @@ export class BottomNavComponent {
     { label: 'Settings', route: '/settings', icon: 'settings' }
   ];
 }
-

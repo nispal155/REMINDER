@@ -58,6 +58,11 @@ export class ThemeService {
     this.applyTheme(theme);
   }
 
+  toggleTheme(): void {
+    const next = this.isDark() ? 'light' : 'dark';
+    this.setTheme(next);
+  }
+
   private applyTheme(theme: AppTheme) {
     if (theme === 'system') {
       const systemDark = typeof window !== 'undefined' && typeof window.matchMedia === 'function'
@@ -71,10 +76,14 @@ export class ThemeService {
 
   private applyDarkClass(dark: boolean) {
     this.isDark.set(dark);
-    if (dark) {
-      document.documentElement.classList.add('dark');
-    } else {
-      document.documentElement.classList.remove('dark');
+    if (typeof document !== 'undefined') {
+      if (dark) {
+        document.documentElement.classList.add('dark');
+        document.documentElement.style.colorScheme = 'dark';
+      } else {
+        document.documentElement.classList.remove('dark');
+        document.documentElement.style.colorScheme = 'light';
+      }
     }
   }
 }

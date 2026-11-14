@@ -36,7 +36,7 @@ export class ButtonComponent {
   clicked = output<MouseEvent>();
 
   getButtonClasses(): string {
-    const base = 'inline-flex items-center justify-center font-medium rounded-xl transition-all duration-150 focus:outline-none focus:ring-2 focus:ring-offset-2 active:scale-[0.98] disabled:opacity-50 disabled:pointer-events-none cursor-pointer';
+    const base = 'inline-flex items-center justify-center font-semibold rounded-xl transition-all duration-150 focus:outline-none focus:ring-2 focus:ring-offset-2 active:scale-[0.98] disabled:opacity-50 disabled:pointer-events-none cursor-pointer';
 
     const sizes: Record<ButtonSize, string> = {
       sm: 'px-3 py-1.5 text-xs',
@@ -44,11 +44,12 @@ export class ButtonComponent {
       lg: 'px-6 py-3 text-base'
     };
 
+    // ASTRA Brand Guidelines Color System: Astra Blue #1166B3, Slate Blue #27465F, Ice Cyan #ABDAF0
     const variants: Record<ButtonVariant, string> = {
-      primary: 'bg-indigo-600 hover:bg-indigo-700 text-white shadow-sm shadow-indigo-600/30 focus:ring-indigo-500 dark:focus:ring-offset-[#090d16]',
-      secondary: 'bg-slate-100 hover:bg-slate-200 text-slate-800 dark:bg-slate-800 dark:hover:bg-slate-700 dark:text-slate-100 focus:ring-slate-400',
-      outline: 'border border-slate-300 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-200 focus:ring-slate-400',
-      ghost: 'hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-200 focus:ring-slate-400',
+      primary: 'bg-[#1166B3] hover:bg-[#0E5291] text-white shadow-sm shadow-[#1166B3]/25 focus:ring-[#7DC0E5] dark:focus:ring-offset-[#1B2E40]',
+      secondary: 'bg-[#E9F0F6] hover:bg-[#D9E4EC] text-[#142536] dark:bg-[#27465F] dark:hover:bg-[#1F384F] dark:text-[#FFFFFF] border border-[#D9E4EC] dark:border-[#365874] focus:ring-[#1166B3]',
+      outline: 'border border-[#1166B3] text-[#1166B3] hover:bg-[#1166B3]/10 dark:text-[#ABDAF0] dark:border-[#ABDAF0]/60 dark:hover:bg-[#ABDAF0]/10 focus:ring-[#7DC0E5]',
+      ghost: 'text-[#142536] dark:text-[#FFFFFF] hover:bg-[#E9F0F6]/80 dark:hover:bg-[#27465F]/70 focus:ring-[#1166B3]',
       danger: 'bg-rose-600 hover:bg-rose-700 text-white shadow-sm shadow-rose-600/30 focus:ring-rose-500'
     };
 
@@ -57,4 +58,3 @@ export class ButtonComponent {
     return `${base} ${sizes[this.size()]} ${variants[this.variant()]} ${width}`;
   }
 }
-
