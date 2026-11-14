@@ -574,8 +574,8 @@ export class DashboardComponent implements OnInit, OnDestroy {
     const bs = this.nepaliCalendar.adToBs(now);
     this.nepaliDateDisplay.set(this.nepaliCalendar.formatBsPretty(bs) + ' BS');
 
-    // Check festival
-    const fest = this.festivalService.getFestival(bs.month, bs.day);
+    // Check festival (year-aware)
+    const fest = this.festivalService.getFestival(bs.year, bs.month, bs.day);
     this.todayFestival.set(fest || null);
   }
 

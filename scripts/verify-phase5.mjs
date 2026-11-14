@@ -68,27 +68,58 @@ const resAnniversary = computeCountdown(anniversarySoon);
 assert(resAnniversary.daysRemaining === 2, `Anniversary in 2 days must report 2 days remaining (actual: ${resAnniversary.daysRemaining})`);
 assert(resAnniversary.milestoneYears === 6, `6th Anniversary should be accurately calculated (actual: ${resAnniversary.milestoneYears})`);
 
-// 2. Nepali Festivals Engine Test
+// 2. Nepali Festivals Engine Test (Year-Aware & Solar Two-Tier)
 console.log('\n--- 2. Testing Nepali Festivals Catalog & Querying ---');
 
-const festivalCatalog = {
+const SOLAR_FIXED_FESTIVALS = {
   '1-1': { name: 'Nepali New Year (Navavarsha)', nameNepali: 'नयाँ वर्ष', isPublicHoliday: true },
-  '6-28': { name: 'Ghatasthapana (Dashain Begins)', nameNepali: 'घटस्थापना (दशैं प्रारम्भ)', isPublicHoliday: true },
-  '7-10': { name: 'Vijaya Dashami (Dashain Tika)', nameNepali: 'विजया दशमी (दशैं टीका)', isPublicHoliday: true },
-  '7-29': { name: 'Laxmi Puja (Deepawali)', nameNepali: 'लक्ष्मी पूजा', isPublicHoliday: true },
-  '8-1': { name: 'Bhai Tika', nameNepali: 'भाइटीका', isPublicHoliday: true },
-  '11-17': { name: 'Maha Shivaratri', nameNepali: 'महाशिवरात्री', isPublicHoliday: true },
-  '11-29': { name: 'Fagu Purnima (Holi)', nameNepali: 'होली पर्व', isPublicHoliday: true }
+  '6-3': { name: 'Constitution Day (Sambidhan Diwas)', nameNepali: 'संविधान दिवस', isPublicHoliday: true },
+  '10-1': { name: 'Maghe Sankranti', nameNepali: 'माघे संक्रान्ति', isPublicHoliday: true },
+  '11-7': { name: 'National Democracy Day', nameNepali: 'राष्ट्रिय प्रजातन्त्र दिवस', isPublicHoliday: true }
 };
 
-assert(festivalCatalog['7-10'].name.includes('Vijaya Dashami'), 'Vijaya Dashami must be on 7-10 in BS catalog');
-assert(festivalCatalog['7-10'].isPublicHoliday === true, 'Vijaya Dashami must be designated a public holiday');
-assert(festivalCatalog['7-29'].nameNepali === 'लक्ष्मी पूजा', 'Laxmi Puja Devanagari title must match');
+const YEARLY_LUNAR_FESTIVALS = {
+  '2081-6-27': { name: 'Vijaya Dashami (Dashain Tika)', nameNepali: 'विजया दशमी (दशैं टीका)', isPublicHoliday: true },
+  '2081-7-13': { name: 'Dhanteras', nameNepali: 'धनतेरस', isPublicHoliday: false },
+  '2081-7-15': { name: 'Laxmi Puja (Deepawali)', nameNepali: 'लक्ष्मी पूजा (दीपावली)', isPublicHoliday: true },
+  '2082-7-1': { name: 'Dhanteras', nameNepali: 'धनतेरस', isPublicHoliday: false },
+  '2083-6-25': { name: 'Ghatasthapana (Dashain Begins)', nameNepali: 'घटस्थापना (दशैं प्रारम्भ)', isPublicHoliday: true },
+  '2083-7-3': { name: 'Vijaya Dashami (Dashain Tika)', nameNepali: 'विजया दशमी (दशैं टीका)', isPublicHoliday: true },
+  '2083-7-20': { name: 'Dhanteras', nameNepali: 'धनतेरस', isPublicHoliday: false },
+  '2083-7-22': { name: 'Laxmi Puja (Deepawali)', nameNepali: 'लक्ष्मी पूजा (दीपावली)', isPublicHoliday: true },
+  '2083-7-24': { name: 'Bhai Tika', nameNepali: 'भाइटीका', isPublicHoliday: true },
+  '2083-11-22': { name: 'Maha Shivaratri', nameNepali: 'महाशिवरात्री', isPublicHoliday: true }
+};
 
-// Test festival search
+function resolveFestival(year, month, day) {
+  const lunarKey = `${year}-${month}-${day}`;
+  if (YEARLY_LUNAR_FESTIVALS[lunarKey]) return YEARLY_LUNAR_FESTIVALS[lunarKey];
+  const solarKey = `${month}-${day}`;
+  if (SOLAR_FIXED_FESTIVALS[solarKey]) return SOLAR_FIXED_FESTIVALS[solarKey];
+  return null;
+}
+
+// Critical bug regression: 28 Kartik 2083 BS must NOT show Dhanteras!
+const todayFest2083 = resolveFestival(2083, 7, 28);
+assert(todayFest2083 === null, '28 Kartik 2083 BS must NOT be Dhanteras (Dhanteras was 20 Kartik 2083)');
+
+// Year-specific Dhanteras check
+const dhanteras2083 = resolveFestival(2083, 7, 20);
+assert(dhanteras2083 !== null && dhanteras2083.name === 'Dhanteras', '20 Kartik 2083 BS must be Dhanteras');
+
+const dhanteras2081 = resolveFestival(2081, 7, 13);
+assert(dhanteras2081 !== null && dhanteras2081.name === 'Dhanteras', '13 Kartik 2081 BS must be Dhanteras');
+
+// Solar holiday check across different years
+const ny2081 = resolveFestival(2081, 1, 1);
+const ny2083 = resolveFestival(2083, 1, 1);
+assert(ny2081 !== null && ny2083 !== null, 'Nepali New Year must match Baisakh 1 across all BS years');
+
+// Test festival search across both catalogs
 function searchFestivals(query) {
   const q = query.toLowerCase();
-  return Object.values(festivalCatalog).filter(f =>
+  const all = [...Object.values(YEARLY_LUNAR_FESTIVALS), ...Object.values(SOLAR_FIXED_FESTIVALS)];
+  return all.filter(f =>
     f.name.toLowerCase().includes(q) || (f.nameNepali && f.nameNepali.includes(q))
   );
 }
@@ -97,7 +128,7 @@ const dashainHits = searchFestivals('Dashain');
 assert(dashainHits.length >= 2, `Searching "Dashain" should find multiple Dashain days (actual: ${dashainHits.length})`);
 
 const nepaliHits = searchFestivals('शिवरात्री');
-assert(nepaliHits.length === 1 && nepaliHits[0].name.includes('Shivaratri'), 'Devanagari query "शिवरात्री" must find Maha Shivaratri');
+assert(nepaliHits.length >= 1 && nepaliHits[0].name.includes('Shivaratri'), 'Devanagari query "शिवरात्री" must find Maha Shivaratri');
 
 // 3. Language & Devanagari Numeral Conversion Test
 console.log('\n--- 3. Testing Language Dictionary & Devanagari Numerals ---');
