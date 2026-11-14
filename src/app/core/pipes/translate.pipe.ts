@@ -13,3 +13,4 @@ export class TranslatePipe implements PipeTransform {
     return this.i18n.translate(key, defaultText);
   }
 }
+

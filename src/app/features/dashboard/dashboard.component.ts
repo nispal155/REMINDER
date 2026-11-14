@@ -1,10 +1,15 @@
 import { Component, inject, signal, computed, OnInit, OnDestroy } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { RouterModule } from '@angular/router';
+import { FormsModule } from '@angular/forms';
 import { ReminderService } from '../reminders/reminder.service';
 import { NepaliCalendarService } from '../../core/services/nepali-calendar.service';
 import { FestivalService, UpcomingFestivalItem } from '../../core/services/festival.service';
 import { BirthdayService } from '../birthdays/birthday.service';
+import { NlpParserService } from '../../core/services/nlp-parser.service';
+import { VoiceRecognitionService } from '../../core/services/voice-recognition.service';
+import { SoundService } from '../../core/services/sound.service';
+import { ToastService } from '../../core/services/toast.service';
 import { CardComponent } from '../../shared/components/card/card.component';
 import { ButtonComponent } from '../../shared/components/button/button.component';
 import { ModalComponent } from '../../shared/components/modal/modal.component';
@@ -19,6 +24,7 @@ import { FestivalInfo } from '../../core/models/calendar.model';
   imports: [
     CommonModule,
     RouterModule,
+    FormsModule,
     CardComponent,
     ButtonComponent,
     ModalComponent,
@@ -73,6 +79,38 @@ import { FestivalInfo } from '../../core/models/calendar.model';
         <!-- Decorative background elements -->
         <div class="absolute -right-10 -bottom-10 w-48 h-48 rounded-full bg-white/10 blur-2xl pointer-events-none"></div>
         <div class="absolute -left-10 -top-10 w-48 h-48 rounded-full bg-indigo-500/20 blur-2xl pointer-events-none"></div>
+      </div>
+
+      <!-- Natural Language Quick-Add Bar -->
+      <div class="p-3 sm:p-4 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 shadow-sm">
+        <form (ngSubmit)="handleQuickAdd()" class="flex items-center gap-2">
+          <div class="relative flex-1">
+            <span class="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400">
+              ⚡
+            </span>
+            <input
+              type="text"
+              [(ngModel)]="quickAddInput"
+              [ngModelOptions]="{standalone: true}"
+              placeholder="Natural Language Quick Add (e.g. 'Pay wifi bill Rs 1500 tomorrow at 6pm @home')"
+              class="w-full pl-10 pr-10 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/80 text-sm text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+            />
+            @if (voiceService.isSupported()) {
+              <button
+                type="button"
+                (click)="dictateQuickAdd()"
+                [class.text-rose-500]="voiceService.isListening()"
+                class="absolute inset-y-0 right-0 pr-3 flex items-center text-slate-400 hover:text-indigo-600 cursor-pointer"
+                title="Speak to dictate"
+              >
+                🎙️
+              </button>
+            }
+          </div>
+          <app-button variant="primary" size="sm" type="submit" [disabled]="!quickAddInput.trim()">
+            Quick Add
+          </app-button>
+        </form>
       </div>
 
       <!-- Quick Metric Counters -->
@@ -215,6 +253,50 @@ import { FestivalInfo } from '../../core/models/calendar.model';
                 </div>
               </div>
             }
+          </div>
+        </app-card>
+      }
+
+      <!-- Monthly Expense & Bill Forecast Widget -->
+      @if (expenseStats().totalDue > 0) {
+        <app-card>
+          <div class="flex items-center justify-between mb-3">
+            <h3 class="text-base font-bold text-slate-900 dark:text-white flex items-center space-x-2">
+              <span>💰</span>
+              <span>Monthly Bill & Expense Forecast</span>
+            </h3>
+            <span class="text-xs font-semibold px-2 py-0.5 rounded-md bg-emerald-100 text-emerald-800 dark:bg-emerald-950/70 dark:text-emerald-300">
+              {{ expenseStats().paidPercent }}% Paid
+            </span>
+          </div>
+
+          <div class="grid grid-cols-3 gap-2.5 mb-3 text-center">
+            <div class="p-2.5 rounded-xl bg-slate-50 dark:bg-slate-800/50">
+              <span class="text-[11px] text-slate-500 font-medium block">Total Due</span>
+              <span class="text-sm sm:text-base font-black text-slate-900 dark:text-white">
+                Rs {{ expenseStats().totalDue | number }}
+              </span>
+            </div>
+            <div class="p-2.5 rounded-xl bg-emerald-50/70 dark:bg-emerald-950/30">
+              <span class="text-[11px] text-emerald-600 dark:text-emerald-400 font-medium block">Paid</span>
+              <span class="text-sm sm:text-base font-black text-emerald-600 dark:text-emerald-400">
+                Rs {{ expenseStats().totalPaid | number }}
+              </span>
+            </div>
+            <div class="p-2.5 rounded-xl bg-amber-50/70 dark:bg-amber-950/30">
+              <span class="text-[11px] text-amber-600 dark:text-amber-400 font-medium block">Pending</span>
+              <span class="text-sm sm:text-base font-black text-amber-600 dark:text-amber-400">
+                Rs {{ expenseStats().totalPending | number }}
+              </span>
+            </div>
+          </div>
+
+          <!-- Progress bar -->
+          <div class="w-full bg-slate-100 dark:bg-slate-800 rounded-full h-2 overflow-hidden">
+            <div
+              class="bg-emerald-500 h-2 rounded-full transition-all duration-500"
+              [style.width.%]="expenseStats().paidPercent"
+            ></div>
           </div>
         </app-card>
       }
@@ -376,6 +458,12 @@ export class DashboardComponent implements OnInit, OnDestroy {
   private readonly nepaliCalendar = inject(NepaliCalendarService);
   private readonly festivalService = inject(FestivalService);
   private readonly birthdayService = inject(BirthdayService);
+  private readonly nlpParser = inject(NlpParserService);
+  readonly voiceService = inject(VoiceRecognitionService);
+  private readonly soundService = inject(SoundService);
+  private readonly toast = inject(ToastService);
+
+  quickAddInput = '';
 
   readonly openAddModal = signal<boolean>(false);
   readonly currentTime = signal<string>('');
@@ -390,6 +478,25 @@ export class DashboardComponent implements OnInit, OnDestroy {
   private clockInterval: any;
 
   readonly totalReminders = computed(() => this.reminderService.allReminders().length);
+
+  readonly expenseStats = computed(() => {
+    const list = this.reminderService.allReminders();
+    let totalDue = 0;
+    let totalPaid = 0;
+
+    for (const r of list) {
+      if (r.amount !== undefined && r.amount !== null && r.amount > 0) {
+        totalDue += r.amount;
+        if (r.isPaid) {
+          totalPaid += r.amount;
+        }
+      }
+    }
+
+    const totalPending = Math.max(0, totalDue - totalPaid);
+    const paidPercent = totalDue > 0 ? Math.round((totalPaid / totalDue) * 100) : 0;
+    return { totalDue, totalPaid, totalPending, paidPercent };
+  });
 
   readonly completionRate = computed(() => {
     const total = this.totalReminders();
@@ -470,6 +577,47 @@ export class DashboardComponent implements OnInit, OnDestroy {
     // Check festival
     const fest = this.festivalService.getFestival(bs.month, bs.day);
     this.todayFestival.set(fest || null);
+  }
+
+  async handleQuickAdd(): Promise<void> {
+    const raw = this.quickAddInput.trim();
+    if (!raw) return;
+
+    try {
+      const parsed = this.nlpParser.parse(raw);
+      await this.reminderService.addReminder({
+        title: parsed.title,
+        dateAD: parsed.dateAD,
+        dateBS: parsed.dateBS,
+        time: parsed.time,
+        priority: parsed.priority,
+        category: parsed.category,
+        repeatType: parsed.repeatType,
+        tags: parsed.tags,
+        amount: parsed.amount,
+        currency: parsed.currency,
+        notificationSchedule: {
+          remindAtTime: true,
+          minutesBefore: [15]
+        }
+      });
+      this.soundService.playChime();
+      this.quickAddInput = '';
+    } catch (e: any) {
+      this.toast.error('Quick add failed: ' + (e?.message || 'Invalid input'));
+    }
+  }
+
+  async dictateQuickAdd(): Promise<void> {
+    try {
+      const transcript = await this.voiceService.startListening();
+      if (transcript && transcript.trim()) {
+        this.quickAddInput = transcript.trim();
+        await this.handleQuickAdd();
+      }
+    } catch (e) {
+      console.warn('Dictation failed or cancelled:', e);
+    }
   }
 
   async onSaveReminder(data: any) {

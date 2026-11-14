@@ -65,3 +65,4 @@ export abstract class BaseRepository<T, TKey> {
 - **`NotificationJobRepository`**: Provides `getDueJobs(nowIso)` for background dispatch.
 - **`SyncQueueRepository`**: Manages atomic enqueuing, marking `syncing`, failure counters, and dequeuing.
 - **`AttachmentRepository`**: Handles blob storage and Google Drive File ID linking.
+

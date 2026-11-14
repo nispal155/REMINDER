@@ -71,3 +71,4 @@ self.addEventListener('notificationclick', (event) => {
 ```
 
 Clients receive the action event and automatically invoke `ReminderService.toggleComplete()` or `ReminderService.snoozeReminder()`.
+

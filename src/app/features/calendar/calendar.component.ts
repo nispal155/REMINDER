@@ -134,7 +134,7 @@ import { Reminder } from '../../core/models/reminder.model';
           </div>
 
           <!-- View Mode (Month / Week / Day / Year) -->
-          <div class="inline-flex p-1 rounded-xl bg-slate-100 dark:bg-slate-800 text-xs font-bold">
+          <div class="inline-flex p-1 rounded-xl bg-slate-100 dark:bg-slate-800 text-xs font-bold no-print">
             <button
               type="button"
               (click)="calendarService.setViewMode('month')"
@@ -182,6 +182,34 @@ import { Reminder } from '../../core/models/reminder.model';
               class="px-2.5 py-1 rounded-lg text-slate-600 dark:text-slate-300 transition-all cursor-pointer"
             >
               Year
+            </button>
+          </div>
+
+          <!-- Extra Tools: Public Holidays Toggle & Print -->
+          <div class="flex items-center space-x-1.5 no-print">
+            <button
+              type="button"
+              (click)="toggleHolidayFilter()"
+              [class.bg-rose-100]="calendarService.showHolidaysOnly()"
+              [class.text-rose-700]="calendarService.showHolidaysOnly()"
+              [class.border-rose-300]="calendarService.showHolidaysOnly()"
+              [class.bg-slate-100]="!calendarService.showHolidaysOnly()"
+              [class.dark:bg-slate-800]="!calendarService.showHolidaysOnly()"
+              [class.text-slate-700]="!calendarService.showHolidaysOnly()"
+              [class.dark:text-slate-300]="!calendarService.showHolidaysOnly()"
+              class="px-2.5 py-1 text-xs font-semibold rounded-xl border border-slate-200 dark:border-slate-700 hover:border-slate-300 transition-all cursor-pointer"
+              title="Filter by gazetted public holidays"
+            >
+              🇳🇵 Holidays
+            </button>
+
+            <button
+              type="button"
+              (click)="printCalendar()"
+              class="p-1.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-200 text-xs font-semibold cursor-pointer"
+              title="Print Monthly Calendar (A4)"
+            >
+              🖨️ Print
             </button>
           </div>
         </div>
@@ -327,10 +355,15 @@ export class CalendarComponent implements OnInit {
       }
     }
 
-    return grid.map(c => ({
+    const annotated = grid.map(c => ({
       ...c,
       remindersCount: counts[c.dateAD] || 0
     }));
+
+    if (this.calendarService.showHolidaysOnly()) {
+      return annotated.filter(c => c.isGazettedHoliday || c.dayOfWeek === 6);
+    }
+    return annotated;
   });
 
   readonly selectedCellOrToday = computed<CalendarDayCell | null>(() => {
@@ -392,6 +425,16 @@ export class CalendarComponent implements OnInit {
     };
     this.prefilledReminder.set(dummy);
     this.showModal.set(true);
+  }
+
+  toggleHolidayFilter() {
+    this.calendarService.showHolidaysOnly.update(v => !v);
+  }
+
+  printCalendar() {
+    if (typeof window !== 'undefined') {
+      window.print();
+    }
   }
 
   async onSaveReminder(data: any) {

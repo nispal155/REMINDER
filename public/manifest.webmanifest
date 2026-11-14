@@ -8,6 +8,38 @@
   "scope": "/",
   "start_url": "/",
   "description": "Fast, offline-first personal reminder and calendar app with English and Nepali calendar support",
+  "shortcuts": [
+    {
+      "name": "New Reminder",
+      "short_name": "Create",
+      "description": "Quickly create a new personal reminder",
+      "url": "/reminders?action=new",
+      "icons": [{ "src": "icons/icon-96x96.png", "sizes": "96x96" }]
+    },
+    {
+      "name": "Nepali Calendar",
+      "short_name": "Calendar",
+      "description": "Open BS & AD Dual Calendar",
+      "url": "/calendar",
+      "icons": [{ "src": "icons/icon-96x96.png", "sizes": "96x96" }]
+    },
+    {
+      "name": "Birthdays & Festivals",
+      "short_name": "Birthdays",
+      "description": "View upcoming birthdays and festivals",
+      "url": "/birthdays",
+      "icons": [{ "src": "icons/icon-96x96.png", "sizes": "96x96" }]
+    }
+  ],
+  "share_target": {
+    "action": "/reminders",
+    "method": "GET",
+    "params": {
+      "title": "title",
+      "text": "text",
+      "url": "url"
+    }
+  },
   "icons": [
     {
       "src": "icons/icon-72x72.png",
@@ -59,4 +91,3 @@
     }
   ]
 }
-

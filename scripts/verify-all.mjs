@@ -13,7 +13,8 @@ const suites = [
   { name: 'Phase 2: Calendar & Reminders', script: 'node scripts/verify-phase2.mjs' },
   { name: 'Phase 3: Notifications & Scheduler', script: 'node scripts/verify-phase3.mjs' },
   { name: 'Phase 4: Google Drive Sync & Backups', script: 'node scripts/verify-phase4.mjs' },
-  { name: 'Phase 5: Advanced Features & Production', script: 'node scripts/verify-phase5.mjs' }
+  { name: 'Phase 5: Advanced Features & Production', script: 'node scripts/verify-phase5.mjs' },
+  { name: 'Extensions: NLP, Tithi, Subtasks & Expense Forecast', script: 'node scripts/verify-extensions.mjs' }
 ];
 
 let allPassed = true;
@@ -35,3 +36,4 @@ if (allPassed) {
   console.log('🎉 ALL 4 PHASES VERIFIED AND PASSED WITH 100% SUCCESS');
   console.log('====================================================\n');
 }
+

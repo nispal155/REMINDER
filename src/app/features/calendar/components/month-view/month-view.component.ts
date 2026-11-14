@@ -37,17 +37,24 @@ import { CalendarDayCell, CalendarSystem, WEEKDAYS } from '../../../../core/mode
                 [class.bg-indigo-600]="cell.isToday"
                 [class.text-white]="cell.isToday"
                 [class.shadow-md]="cell.isToday"
-                [class.text-slate-900]="!cell.isToday"
-                [class.dark:text-white]="!cell.isToday"
-                [class.text-rose-600]="cell.dayOfWeek === 6 && !cell.isToday"
+                [class.text-slate-900]="!cell.isToday && !cell.isGazettedHoliday && cell.dayOfWeek !== 6"
+                [class.dark:text-white]="!cell.isToday && !cell.isGazettedHoliday && cell.dayOfWeek !== 6"
+                [class.text-rose-600]="(cell.dayOfWeek === 6 || cell.isGazettedHoliday) && !cell.isToday"
               >
                 {{ system() === 'AD' ? cell.adDate.day : cell.bsDate.day }}
               </span>
 
-              <!-- Secondary Date Badge -->
-              <span class="text-[10px] sm:text-[11px] font-semibold text-slate-400 dark:text-slate-500">
-                {{ system() === 'AD' ? cell.bsDate.day : cell.adDate.day }}
-              </span>
+              <!-- Secondary Date Badge & Tithi -->
+              <div class="text-right">
+                <span class="text-[10px] sm:text-[11px] font-semibold text-slate-400 dark:text-slate-500 block">
+                  {{ system() === 'AD' ? cell.bsDate.day : cell.adDate.day }}
+                </span>
+                @if (cell.tithi) {
+                  <span class="text-[9px] text-amber-600 dark:text-amber-400/90 font-medium block leading-none truncate max-w-[48px]">
+                    {{ cell.tithi }}
+                  </span>
+                }
+              </div>
             </div>
 
             <!-- Festival Badge (if any) -->

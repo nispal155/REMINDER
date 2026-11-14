@@ -1,5 +1,6 @@
 import { Injectable, inject, signal, computed } from '@angular/core';
 import { NepaliCalendarService } from './nepali-calendar.service';
+import { TithiService } from './tithi.service';
 import {
   CalendarSystem,
   CalendarViewMode,
@@ -14,9 +15,11 @@ import {
 })
 export class CalendarService {
   private readonly nepaliCalendar = inject(NepaliCalendarService);
+  private readonly tithiService = inject(TithiService);
 
   readonly calendarSystem = signal<CalendarSystem>('DUAL');
   readonly viewMode = signal<CalendarViewMode>('month');
+  readonly showHolidaysOnly = signal<boolean>(false);
 
   // Currently focused anchor date (JavaScript Date)
   readonly activeDate = signal<Date>(new Date());
@@ -85,6 +88,8 @@ export class CalendarService {
       const adDateObj = this.nepaliCalendar.bsToAd(bsDate);
       const dateAD = this.nepaliCalendar.formatAdIso(adDateObj);
       const dateBS = this.nepaliCalendar.formatBsIso(bsDate);
+      const lunar = this.tithiService.getLunarInfo(dateAD, bsDate.day);
+      const festival = this.nepaliCalendar.getFestival(bsDate);
 
       cells.push({
         dateAD,
@@ -97,7 +102,9 @@ export class CalendarService {
         isSelected: false,
         remindersCount: 0,
         eventsCount: 0,
-        festival: this.nepaliCalendar.getFestival(bsDate)
+        festival,
+        tithi: lunar.badgeLabelNp || lunar.tithiNameNp,
+        isGazettedHoliday: festival?.isPublicHoliday || false
       });
     }
 
@@ -107,6 +114,8 @@ export class CalendarService {
       const adDateObj = this.nepaliCalendar.bsToAd(bsDate);
       const dateAD = this.nepaliCalendar.formatAdIso(adDateObj);
       const dateBS = this.nepaliCalendar.formatBsIso(bsDate);
+      const lunar = this.tithiService.getLunarInfo(dateAD, bsDate.day);
+      const festival = this.nepaliCalendar.getFestival(bsDate);
 
       cells.push({
         dateAD,
@@ -119,7 +128,9 @@ export class CalendarService {
         isSelected: false,
         remindersCount: 0,
         eventsCount: 0,
-        festival: this.nepaliCalendar.getFestival(bsDate)
+        festival,
+        tithi: lunar.badgeLabelNp || lunar.tithiNameNp,
+        isGazettedHoliday: festival?.isPublicHoliday || false
       });
     }
 
@@ -133,6 +144,8 @@ export class CalendarService {
       const adDateObj = this.nepaliCalendar.bsToAd(bsDate);
       const dateAD = this.nepaliCalendar.formatAdIso(adDateObj);
       const dateBS = this.nepaliCalendar.formatBsIso(bsDate);
+      const lunar = this.tithiService.getLunarInfo(dateAD, bsDate.day);
+      const festival = this.nepaliCalendar.getFestival(bsDate);
 
       cells.push({
         dateAD,
@@ -145,7 +158,9 @@ export class CalendarService {
         isSelected: false,
         remindersCount: 0,
         eventsCount: 0,
-        festival: this.nepaliCalendar.getFestival(bsDate)
+        festival,
+        tithi: lunar.badgeLabelNp || lunar.tithiNameNp,
+        isGazettedHoliday: festival?.isPublicHoliday || false
       });
     }
 
@@ -173,6 +188,8 @@ export class CalendarService {
       const dateAD = this.nepaliCalendar.formatAdIso(adDateObj);
       const bsDate = this.nepaliCalendar.adToBs(dateAD);
       const dateBS = this.nepaliCalendar.formatBsIso(bsDate);
+      const lunar = this.tithiService.getLunarInfo(dateAD, bsDate.day);
+      const festival = this.nepaliCalendar.getFestival(bsDate);
 
       cells.push({
         dateAD,
@@ -185,7 +202,9 @@ export class CalendarService {
         isSelected: false,
         remindersCount: 0,
         eventsCount: 0,
-        festival: this.nepaliCalendar.getFestival(bsDate)
+        festival,
+        tithi: lunar.badgeLabelNp || lunar.tithiNameNp,
+        isGazettedHoliday: festival?.isPublicHoliday || false
       });
     }
 
@@ -195,6 +214,8 @@ export class CalendarService {
       const dateAD = this.nepaliCalendar.formatAdIso(adDateObj);
       const bsDate = this.nepaliCalendar.adToBs(dateAD);
       const dateBS = this.nepaliCalendar.formatBsIso(bsDate);
+      const lunar = this.tithiService.getLunarInfo(dateAD, bsDate.day);
+      const festival = this.nepaliCalendar.getFestival(bsDate);
 
       cells.push({
         dateAD,
@@ -207,7 +228,9 @@ export class CalendarService {
         isSelected: false,
         remindersCount: 0,
         eventsCount: 0,
-        festival: this.nepaliCalendar.getFestival(bsDate)
+        festival,
+        tithi: lunar.badgeLabelNp || lunar.tithiNameNp,
+        isGazettedHoliday: festival?.isPublicHoliday || false
       });
     }
 
@@ -218,6 +241,8 @@ export class CalendarService {
       const dateAD = this.nepaliCalendar.formatAdIso(adDateObj);
       const bsDate = this.nepaliCalendar.adToBs(dateAD);
       const dateBS = this.nepaliCalendar.formatBsIso(bsDate);
+      const lunar = this.tithiService.getLunarInfo(dateAD, bsDate.day);
+      const festival = this.nepaliCalendar.getFestival(bsDate);
 
       cells.push({
         dateAD,
@@ -230,7 +255,9 @@ export class CalendarService {
         isSelected: false,
         remindersCount: 0,
         eventsCount: 0,
-        festival: this.nepaliCalendar.getFestival(bsDate)
+        festival,
+        tithi: lunar.badgeLabelNp || lunar.tithiNameNp,
+        isGazettedHoliday: festival?.isPublicHoliday || false
       });
     }
 

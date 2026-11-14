@@ -1,7 +1,10 @@
-import { Component, inject, input, output, OnInit, signal, effect } from '@angular/core';
+import { Component, inject, input, output, OnInit, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { ReactiveFormsModule, FormBuilder, Validators } from '@angular/forms';
+import { ReactiveFormsModule, FormBuilder, Validators, FormsModule } from '@angular/forms';
+import { v4 as uuidv4 } from 'uuid';
 import { NepaliCalendarService } from '../../../../core/services/nepali-calendar.service';
+import { VoiceRecognitionService } from '../../../../core/services/voice-recognition.service';
+import { NlpParserService } from '../../../../core/services/nlp-parser.service';
 import { ButtonComponent } from '../../../../shared/components/button/button.component';
 import {
   Reminder,
@@ -9,22 +12,57 @@ import {
   RepeatType,
   REMINDER_CATEGORIES,
   ReminderCategory,
-  CalendarInputMode
+  CalendarInputMode,
+  Subtask
 } from '../../../../core/models/reminder.model';
 import { BS_MONTHS } from '../../../../core/models/calendar.model';
 
 @Component({
   selector: 'app-reminder-form',
   standalone: true,
-  imports: [CommonModule, ReactiveFormsModule, ButtonComponent],
+  imports: [CommonModule, ReactiveFormsModule, FormsModule, ButtonComponent],
   template: `
     <form [formGroup]="form" (ngSubmit)="onSubmit()" class="space-y-4">
       
-      <!-- Title -->
+      <!-- Voice Input Banner (if listening) -->
+      @if (voiceService.isListening()) {
+        <div class="p-3 rounded-2xl bg-indigo-50 dark:bg-indigo-950/60 border border-indigo-200 dark:border-indigo-800 flex items-center justify-between animate-pulse">
+          <div class="flex items-center space-x-2">
+            <span class="w-3 h-3 rounded-full bg-rose-500 animate-ping"></span>
+            <span class="text-xs font-semibold text-indigo-700 dark:text-indigo-300">
+              Listening... Speak your reminder (e.g. "Doctor visit tomorrow 5pm @health")
+            </span>
+          </div>
+          <button
+            type="button"
+            (click)="voiceService.stopListening()"
+            class="text-xs font-bold text-rose-600 hover:text-rose-700 cursor-pointer"
+          >
+            Stop
+          </button>
+        </div>
+      }
+
+      <!-- Title + Voice Dictation Button -->
       <div>
-        <label class="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
-          Reminder Title *
-        </label>
+        <div class="flex items-center justify-between mb-1">
+          <label class="block text-xs font-semibold text-slate-700 dark:text-slate-300">
+            Reminder Title *
+          </label>
+          @if (voiceService.isSupported()) {
+            <button
+              type="button"
+              (click)="startVoiceDictation()"
+              [class.text-rose-600]="voiceService.isListening()"
+              [class.bg-rose-50]="voiceService.isListening()"
+              class="inline-flex items-center space-x-1 px-2 py-0.5 text-xs font-medium rounded-lg text-indigo-600 dark:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-950/40 cursor-pointer border border-indigo-200 dark:border-indigo-800 transition-colors"
+              title="Speak reminder"
+            >
+              <span>🎙️</span>
+              <span>{{ voiceService.isListening() ? 'Listening...' : 'Voice Dictate' }}</span>
+            </button>
+          }
+        </div>
         <input
           type="text"
           formControlName="title"
@@ -47,6 +85,120 @@ import { BS_MONTHS } from '../../../../core/models/calendar.model';
           placeholder="Optional notes or details..."
           class="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-sm text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
         ></textarea>
+      </div>
+
+      <!-- Subtasks / Checklist Builder -->
+      <div class="p-3 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200/80 dark:border-slate-800 space-y-2">
+        <label class="block text-xs font-bold text-slate-800 dark:text-slate-200 uppercase tracking-wider">
+          ☑️ Subtasks / Checklist
+        </label>
+        
+        <div class="flex items-center space-x-2">
+          <input
+            type="text"
+            [(ngModel)]="newSubtaskText"
+            [ngModelOptions]="{standalone: true}"
+            (keydown.enter)="$event.preventDefault(); addSubtaskItem()"
+            placeholder="Add subtask step..."
+            class="flex-1 px-3 py-1.5 text-xs rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-white"
+          />
+          <button
+            type="button"
+            (click)="addSubtaskItem()"
+            class="px-2.5 py-1.5 text-xs font-semibold rounded-xl bg-indigo-600 text-white hover:bg-indigo-700 cursor-pointer"
+          >
+            + Add
+          </button>
+        </div>
+
+        @if (subtasks().length > 0) {
+          <div class="space-y-1 pt-1">
+            @for (st of subtasks(); track st.id; let i = $index) {
+              <div class="flex items-center justify-between p-2 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-xs">
+                <div class="flex items-center space-x-2 min-w-0 flex-1">
+                  <input
+                    type="checkbox"
+                    [checked]="st.completed"
+                    (change)="toggleSubtaskLocal(st.id)"
+                    class="rounded text-indigo-600 cursor-pointer"
+                  />
+                  <span [class.line-through]="st.completed" [class.opacity-50]="st.completed" class="text-slate-800 dark:text-slate-200 truncate">
+                    {{ st.title }}
+                  </span>
+                </div>
+                <button
+                  type="button"
+                  (click)="removeSubtaskItem(i)"
+                  class="text-rose-500 hover:text-rose-700 text-xs font-bold ml-2 cursor-pointer"
+                >
+                  ✕
+                </button>
+              </div>
+            }
+          </div>
+        }
+      </div>
+
+      <!-- Context Tags (@home, @office, @market, etc.) -->
+      <div>
+        <label class="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
+          🏷️ Context Tags
+        </label>
+        <div class="flex flex-wrap gap-1.5 mb-2">
+          @for (preset of presetTags; track preset) {
+            <button
+              type="button"
+              (click)="toggleTag(preset)"
+              [class.bg-indigo-600]="hasTag(preset)"
+              [class.text-white]="hasTag(preset)"
+              [class.bg-slate-100]="!hasTag(preset)"
+              [class.dark:bg-slate-800]="!hasTag(preset)"
+              [class.text-slate-700]="!hasTag(preset)"
+              [class.dark:text-slate-300]="!hasTag(preset)"
+              class="px-2 py-0.5 text-xs font-medium rounded-lg cursor-pointer transition-all border border-slate-200 dark:border-slate-700"
+            >
+              {{ preset }}
+            </button>
+          }
+        </div>
+      </div>
+
+      <!-- Financial / Bill Tracker Info -->
+      <div class="p-3 rounded-2xl bg-emerald-50/50 dark:bg-emerald-950/20 border border-emerald-200/60 dark:border-emerald-800/40 space-y-2">
+        <label class="block text-xs font-bold text-emerald-800 dark:text-emerald-300 uppercase tracking-wider">
+          💰 Expense / Bill Amount (Optional)
+        </label>
+        <div class="grid grid-cols-3 gap-2">
+          <div class="col-span-2">
+            <input
+              type="number"
+              formControlName="amount"
+              placeholder="e.g. 1500"
+              class="w-full px-3 py-1.5 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-xs font-medium text-slate-900 dark:text-white"
+            />
+          </div>
+          <div>
+            <select
+              formControlName="currency"
+              class="w-full px-2 py-1.5 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-xs font-medium text-slate-900 dark:text-white"
+            >
+              <option value="NPR">NPR (Rs)</option>
+              <option value="USD">USD ($)</option>
+              <option value="INR">INR (₹)</option>
+            </select>
+          </div>
+        </div>
+        <div class="flex items-center space-x-2 pt-1">
+          <input
+            type="checkbox"
+            formControlName="isPaid"
+            id="isPaidCheck"
+            class="rounded text-emerald-600 cursor-pointer"
+          />
+          <label for="isPaidCheck" class="text-xs font-medium text-slate-700 dark:text-slate-300 cursor-pointer">
+            Marked as Paid
+          </label>
+        </div>
       </div>
 
       <!-- Calendar System Switcher -->
@@ -289,6 +441,8 @@ import { BS_MONTHS } from '../../../../core/models/calendar.model';
 export class ReminderFormComponent implements OnInit {
   private readonly fb = inject(FormBuilder);
   private readonly nepaliCalendar = inject(NepaliCalendarService);
+  readonly voiceService = inject(VoiceRecognitionService);
+  private readonly nlpParser = inject(NlpParserService);
 
   initialReminder = input<Reminder | null>(null);
   saved = output<{
@@ -301,6 +455,11 @@ export class ReminderFormComponent implements OnInit {
     priority: Priority;
     category: ReminderCategory | string;
     repeatType: RepeatType;
+    subtasks?: Subtask[];
+    tags?: string[];
+    amount?: number;
+    currency?: string;
+    isPaid?: boolean;
     notificationSchedule?: {
       remindAtTime: boolean;
       minutesBefore: number[];
@@ -330,24 +489,11 @@ export class ReminderFormComponent implements OnInit {
   readonly equivalentBsDisplay = signal<string>('');
   readonly selectedFiles = signal<File[]>([]);
 
-  onFilesSelected(event: Event) {
-    const input = event.target as HTMLInputElement;
-    if (input.files && input.files.length > 0) {
-      const added = Array.from(input.files);
-      this.selectedFiles.update(files => [...files, ...added]);
-      input.value = '';
-    }
-  }
-
-  removeFile(index: number) {
-    this.selectedFiles.update(files => files.filter((_, i) => i !== index));
-  }
-
-  formatFileSize(bytes: number): string {
-    if (bytes < 1024) return `${bytes} B`;
-    if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
-    return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
-  }
+  // Subtasks & Context Tags
+  newSubtaskText = '';
+  readonly subtasks = signal<Subtask[]>([]);
+  readonly tags = signal<string[]>([]);
+  readonly presetTags = ['@home', '@office', '@market', '@bank', '@clinic', '@finance'];
 
   readonly form = this.fb.group({
     title: ['', [Validators.required, Validators.minLength(2)]],
@@ -359,7 +505,10 @@ export class ReminderFormComponent implements OnInit {
     time: ['10:00', Validators.required],
     priority: ['medium' as Priority, Validators.required],
     category: ['Personal' as ReminderCategory | string, Validators.required],
-    repeatType: ['none' as RepeatType, Validators.required]
+    repeatType: ['none' as RepeatType, Validators.required],
+    amount: [null as number | null],
+    currency: ['NPR'],
+    isPaid: [false]
   });
 
   constructor() {
@@ -382,16 +531,24 @@ export class ReminderFormComponent implements OnInit {
         time: existing.time,
         priority: existing.priority,
         category: existing.category,
-        repeatType: existing.repeatType
+        repeatType: existing.repeatType,
+        amount: existing.amount || null,
+        currency: existing.currency || 'NPR',
+        isPaid: existing.isPaid ?? false
       });
       if (existing.calendarMode) {
         this.calendarMode.set(existing.calendarMode);
+      }
+      if (existing.subtasks) {
+        this.subtasks.set([...existing.subtasks]);
+      }
+      if (existing.tags) {
+        this.tags.set([...existing.tags]);
       }
       if (existing.notificationSchedule?.minutesBefore) {
         this.selectedLeadTimes.set(existing.notificationSchedule.minutesBefore);
       }
     } else {
-      // Initialize with today's live dates
       const today = new Date();
       const bs = this.nepaliCalendar.adToBs(today);
       this.form.patchValue({
@@ -404,6 +561,74 @@ export class ReminderFormComponent implements OnInit {
 
     this.updateDaysInCurrentBsMonth();
     this.syncFromBs();
+  }
+
+  async startVoiceDictation(): Promise<void> {
+    try {
+      const text = await this.voiceService.startListening();
+      if (text && text.trim()) {
+        const parsed = this.nlpParser.parse(text);
+        this.form.patchValue({
+          title: parsed.title,
+          time: parsed.time,
+          priority: parsed.priority,
+          category: parsed.category,
+          repeatType: parsed.repeatType
+        });
+        if (parsed.amount) {
+          this.form.patchValue({
+            amount: parsed.amount,
+            currency: parsed.currency || 'NPR'
+          });
+        }
+        if (parsed.tags && parsed.tags.length > 0) {
+          this.tags.set(Array.from(new Set([...this.tags(), ...parsed.tags])));
+        }
+        // Sync dates
+        const bsParts = parsed.dateBS.split('-').map(Number);
+        this.form.patchValue({
+          bsYear: bsParts[0],
+          bsMonth: bsParts[1],
+          bsDay: bsParts[2],
+          dateAD: parsed.dateAD
+        });
+        this.updateDaysInCurrentBsMonth();
+        this.syncFromBs();
+      }
+    } catch (e) {
+      console.warn('Voice recognition error or cancelled:', e);
+    }
+  }
+
+  addSubtaskItem(): void {
+    if (!this.newSubtaskText.trim()) return;
+    this.subtasks.update(list => [
+      ...list,
+      { id: uuidv4(), title: this.newSubtaskText.trim(), completed: false }
+    ]);
+    this.newSubtaskText = '';
+  }
+
+  toggleSubtaskLocal(id: string): void {
+    this.subtasks.update(list =>
+      list.map(st => st.id === id ? { ...st, completed: !st.completed } : st)
+    );
+  }
+
+  removeSubtaskItem(index: number): void {
+    this.subtasks.update(list => list.filter((_, i) => i !== index));
+  }
+
+  toggleTag(tag: string): void {
+    if (this.tags().includes(tag)) {
+      this.tags.update(t => t.filter(x => x !== tag));
+    } else {
+      this.tags.update(t => [...t, tag]);
+    }
+  }
+
+  hasTag(tag: string): boolean {
+    return this.tags().includes(tag);
   }
 
   setCalendarMode(mode: CalendarInputMode) {
@@ -467,7 +692,6 @@ export class ReminderFormComponent implements OnInit {
   toggleLeadTime(minutes: number) {
     const current = this.selectedLeadTimes();
     if (current.includes(minutes)) {
-      // Don't allow empty, at least keep one
       if (current.length > 1) {
         this.selectedLeadTimes.set(current.filter(m => m !== minutes));
       }
@@ -478,6 +702,25 @@ export class ReminderFormComponent implements OnInit {
 
   isLeadTimeSelected(minutes: number): boolean {
     return this.selectedLeadTimes().includes(minutes);
+  }
+
+  onFilesSelected(event: Event) {
+    const input = event.target as HTMLInputElement;
+    if (input.files && input.files.length > 0) {
+      const added = Array.from(input.files);
+      this.selectedFiles.update(files => [...files, ...added]);
+      input.value = '';
+    }
+  }
+
+  removeFile(index: number) {
+    this.selectedFiles.update(files => files.filter((_, i) => i !== index));
+  }
+
+  formatFileSize(bytes: number): string {
+    if (bytes < 1024) return `${bytes} B`;
+    if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+    return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
   }
 
   onSubmit() {
@@ -501,6 +744,11 @@ export class ReminderFormComponent implements OnInit {
       priority: val.priority as Priority,
       category: val.category!,
       repeatType: val.repeatType as RepeatType,
+      subtasks: this.subtasks(),
+      tags: this.tags(),
+      amount: val.amount ? Number(val.amount) : undefined,
+      currency: val.currency || 'NPR',
+      isPaid: Boolean(val.isPaid),
       notificationSchedule: {
         remindAtTime: this.selectedLeadTimes().includes(0),
         minutesBefore: this.selectedLeadTimes()
@@ -509,4 +757,3 @@ export class ReminderFormComponent implements OnInit {
     });
   }
 }
-

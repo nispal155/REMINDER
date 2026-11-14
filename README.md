@@ -20,7 +20,14 @@ A private, production-quality Personal Reminder Progressive Web App (PWA) with d
 - **📅 Events & Meetings**: Multi-day scheduling with start/end dates and times, locations, and recurrence.
 - **🌐 Dual-Language Support**: Instant switching between English and Nepali (नेपाली) with optional Devanagari numerals (`०-९`).
 - **🔍 Omnibar Global Search**: Unified search across Reminders, Events, Birthdays, and Festivals (`⌘K` / `Ctrl+K`).
-- **💾 Automated Backups**: Cloud snapshots in `REMINDER_APP/backups/REMINDER_BACKUP_*.json` and local standalone JSON export/import.
+- **⚡ Natural Language Quick-Add & Voice Dictation**: Parse free-form sentences (e.g. *"Pay electricity bill Rs 1500 tomorrow at 6pm @home urgent"*) into structured reminders with auto-detected dates, times, categories, priorities, amounts, and context tags. Hands-free speech-to-text input via the Web Speech API.
+- **🌕 Tithi & Vedic Panchanga**: Live lunar phase calculations (Ekadashi, Purnima 🌕, Aunsi/Amavasya 🌑, and Sankranti) integrated directly into calendar cells.
+- **🇳🇵 Gazetted Public Holiday Filters & Printable Calendar**: One-click filter for government holidays and clean `@media print` layout for physical A4 printing of monthly BS calendars.
+- **☑️ Subtasks & Dynamic Checklists**: Break down complex reminders into subtasks with real-time completion progress meters.
+- **🏷️ Context Tags & Bill Tracking**: Tag reminders with `@home`, `@office`, `@market`, `@clinic`, `@bank` and forecast monthly expenses (Total Due, Paid, Pending) on the dashboard.
+- **🔔 Authentic Synthesized Audio Chimes**: Web Audio synthesized chime options including Tibetan Temple Bell, Himalayan Singing Bowl (432Hz), and Digital Arp without external audio asset bloat.
+- **📱 PWA Shortcuts & Web Share Target**: Quick-launch actions from home screen and share URLs or text directly into REMINDER from other apps.
+- **🧹 Storage Management**: Purge cloud-backed local attachment blobs and auto-archive completed reminders older than 6 months.
 
 ---
 

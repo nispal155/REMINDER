@@ -148,6 +148,39 @@ export class IndexedDbService {
   }
 
   /**
+   * Purge local blob contents for attachments that have been safely synced to Google Drive
+   */
+  async purgeSyncedAttachmentBlobs(): Promise<number> {
+    const synced = await db.attachments.filter(att => Boolean(att.isSynced && att.localBlob)).toArray();
+    let count = 0;
+    for (const att of synced) {
+      await db.attachments.update(att.id, { localBlob: undefined });
+      count++;
+    }
+    return count;
+  }
+
+  /**
+   * Archive completed reminders older than specified months (e.g. 6 months)
+   */
+  async archiveCompletedOlderThan(months: number): Promise<number> {
+    const cutoffDate = new Date();
+    cutoffDate.setMonth(cutoffDate.getMonth() - months);
+    const cutoffIso = cutoffDate.toISOString().split('T')[0];
+
+    const toArchive = await db.reminders
+      .where('status')
+      .equals('completed')
+      .and(r => r.dateAD < cutoffIso)
+      .toArray();
+
+    if (toArchive.length > 0) {
+      await db.reminders.bulkDelete(toArchive.map(r => r.id));
+    }
+    return toArchive.length;
+  }
+
+  /**
    * Reset / clear all tables
    */
   async clearAllData(): Promise<void> {

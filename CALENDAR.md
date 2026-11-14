@@ -69,3 +69,4 @@ Built-in support for official Nepalese national holidays and cultural festivals:
 | Chhath Parva | छठ पर्व | 8-6 | Yes |
 | Maha Shivaratri | महाशिवरात्री | 11-17 | Yes |
 | Fagu Purnima (Holi) | होली पर्व | 11-29 / 11-30 | Yes |
+

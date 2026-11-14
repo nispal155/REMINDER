@@ -93,3 +93,4 @@ export class EventService {
     this.toast.info('Event deleted');
   }
 }
+

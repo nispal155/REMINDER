@@ -1,6 +1,7 @@
-import { Injectable, signal } from '@angular/core';
+import { Injectable, inject, signal } from '@angular/core';
 import { Subject } from 'rxjs';
 import { NotificationPermissionState } from '../models/notification.model';
+import { SoundService } from './sound.service';
 
 export interface NotificationActionMessage {
   action: 'complete' | 'snooze';
@@ -12,6 +13,8 @@ export interface NotificationActionMessage {
   providedIn: 'root'
 })
 export class NotificationService {
+  private readonly soundService = inject(SoundService);
+
   readonly permissionState = signal<NotificationPermissionState>('default');
   readonly actionReceived$ = new Subject<NotificationActionMessage>();
   private swRegistration: ServiceWorkerRegistration | null = null;
@@ -83,33 +86,7 @@ export class NotificationService {
    * Play an in-app synthesized notification chime using Web Audio API
    */
   playNotificationSound() {
-    if (typeof window === 'undefined') return;
-    try {
-      const AudioContextClass = window.AudioContext || (window as any).webkitAudioContext;
-      if (!AudioContextClass) return;
-      const ctx = new AudioContextClass();
-
-      // Pleasant two-tone chime (800Hz -> 1050Hz)
-      const now = ctx.currentTime;
-      const osc = ctx.createOscillator();
-      const gain = ctx.createGain();
-
-      osc.type = 'sine';
-      osc.frequency.setValueAtTime(784, now); // G5 note
-      osc.frequency.exponentialRampToValueAtTime(1046.5, now + 0.12); // C6 note
-
-      gain.gain.setValueAtTime(0.2, now);
-      gain.gain.exponentialRampToValueAtTime(0.001, now + 0.45);
-
-      osc.connect(gain);
-      gain.connect(ctx.destination);
-
-      osc.start(now);
-      osc.stop(now + 0.45);
-    } catch (e) {
-      // Audio autoplay might be suspended until user interaction
-      console.warn('AudioContext playback restricted:', e);
-    }
+    this.soundService.playChime();
   }
 
   /**

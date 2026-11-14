@@ -44,12 +44,75 @@ import { CardComponent } from '../../../../shared/components/card/card.component
                   💤 Snoozed
                 </span>
               }
+
+              <!-- Bill Amount Badge (if set) -->
+              @if (reminder().amount !== undefined && reminder().amount !== null) {
+                <span
+                  (click)="paidToggled.emit(reminder())"
+                  class="text-[10px] font-bold px-2 py-0.5 rounded-full shrink-0 cursor-pointer transition-all border"
+                  [class.bg-emerald-100]="reminder().isPaid"
+                  [class.text-emerald-700]="reminder().isPaid"
+                  [class.border-emerald-300]="reminder().isPaid"
+                  [class.bg-amber-100]="!reminder().isPaid"
+                  [class.text-amber-800]="!reminder().isPaid"
+                  [class.border-amber-300]="!reminder().isPaid"
+                  title="Click to toggle Paid status"
+                >
+                  {{ reminder().currency || 'Rs' }} {{ reminder().amount | number }}
+                  • {{ reminder().isPaid ? '✓ PAID' : 'PENDING' }}
+                </span>
+              }
             </div>
 
             @if (reminder().description) {
               <p class="text-xs text-slate-600 dark:text-slate-400 mt-1 line-clamp-2">
                 {{ reminder().description }}
               </p>
+            }
+
+            <!-- Context Tags -->
+            @if (reminder().tags && reminder().tags!.length > 0) {
+              <div class="flex flex-wrap gap-1 mt-1.5">
+                @for (tag of reminder().tags; track tag) {
+                  <span class="text-[10px] font-semibold px-1.5 py-0.5 rounded bg-indigo-50 dark:bg-indigo-950/50 text-indigo-600 dark:text-indigo-400 border border-indigo-200/50 dark:border-indigo-800/50">
+                    {{ tag }}
+                  </span>
+                }
+              </div>
+            }
+
+            <!-- Subtasks / Checklist Preview -->
+            @if (reminder().subtasks && reminder().subtasks!.length > 0) {
+              <div class="mt-2.5 pt-2 border-t border-slate-100 dark:border-slate-800/80 space-y-1">
+                <!-- Progress Header -->
+                <div class="flex items-center justify-between text-[11px] text-slate-500 font-medium mb-1">
+                  <span>Subtasks ({{ completedSubtasksCount() }}/{{ reminder().subtasks!.length }})</span>
+                  <span>{{ subtaskProgressPercent() }}%</span>
+                </div>
+                <div class="w-full bg-slate-100 dark:bg-slate-800 h-1 rounded-full overflow-hidden mb-2">
+                  <div
+                    class="bg-indigo-600 h-full transition-all duration-300"
+                    [style.width.%]="subtaskProgressPercent()"
+                  ></div>
+                </div>
+
+                <!-- Subtasks Items -->
+                <div class="space-y-1">
+                  @for (st of reminder().subtasks; track st.id) {
+                    <label class="flex items-center space-x-2 text-xs text-slate-700 dark:text-slate-300 cursor-pointer hover:text-indigo-600">
+                      <input
+                        type="checkbox"
+                        [checked]="st.completed"
+                        (change)="subtaskToggled.emit({ reminder: reminder(), subtaskId: st.id })"
+                        class="rounded text-indigo-600 h-3.5 w-3.5 cursor-pointer"
+                      />
+                      <span [class.line-through]="st.completed" [class.opacity-50]="st.completed">
+                        {{ st.title }}
+                      </span>
+                    </label>
+                  }
+                </div>
+              </div>
             }
 
             <!-- Metadata footer -->
@@ -157,6 +220,18 @@ export class ReminderCardComponent {
   snoozeClicked = output<Reminder>();
   duplicateClicked = output<Reminder>();
   deleteClicked = output<Reminder>();
+  subtaskToggled = output<{ reminder: Reminder; subtaskId: string }>();
+  paidToggled = output<Reminder>();
+
+  readonly completedSubtasksCount = computed(() => {
+    return this.reminder().subtasks?.filter(st => st.completed).length || 0;
+  });
+
+  readonly subtaskProgressPercent = computed(() => {
+    const list = this.reminder().subtasks;
+    if (!list || list.length === 0) return 0;
+    return Math.round((this.completedSubtasksCount() / list.length) * 100);
+  });
 
   readonly nextNotification = computed<string | null>(() => {
     const r = this.reminder();
@@ -205,4 +280,3 @@ export class ReminderCardComponent {
     }
   }
 }
-

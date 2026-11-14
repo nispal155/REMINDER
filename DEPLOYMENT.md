@@ -82,3 +82,4 @@ Configure the following environment variables in your Vercel Project Settings (o
      - `http://localhost:4200` (for local development)
      - `https://your-app-name.vercel.app` (your Vercel production domain)
 6. Copy the generated **Client ID** into REMINDER Settings.
+

@@ -10,9 +10,11 @@ import { AuthService } from '../../core/services/auth.service';
 import { SyncService } from '../../core/services/sync.service';
 import { BackupService } from '../../core/services/backup.service';
 import { I18nService } from '../../core/services/i18n.service';
+import { SoundService } from '../../core/services/sound.service';
+import { ToastService } from '../../core/services/toast.service';
 import { CardComponent } from '../../shared/components/card/card.component';
 import { ButtonComponent } from '../../shared/components/button/button.component';
-import { AppTheme, CalendarType } from '../../core/models/settings.model';
+import { AppTheme, CalendarType, SoundChimeType } from '../../core/models/settings.model';
 import { DriveFileItem } from '../../core/services/google-drive.service';
 
 @Component({
@@ -450,18 +452,49 @@ import { DriveFileItem } from '../../core/services/google-drive.service';
             />
           </div>
 
-          <!-- Sound Chime Toggle -->
-          <div class="flex items-center justify-between py-2 border-b border-slate-100 dark:border-slate-800">
-            <div>
-              <h4 class="text-xs sm:text-sm font-medium text-slate-800 dark:text-slate-200">Audio Chime</h4>
-              <p class="text-[11px] text-slate-500 dark:text-slate-400">Play pleasant synthetic bell chime on alert</p>
+          <!-- Sound Chime Toggle & Picker -->
+          <div class="py-2 border-b border-slate-100 dark:border-slate-800 space-y-2">
+            <div class="flex items-center justify-between">
+              <div>
+                <h4 class="text-xs sm:text-sm font-medium text-slate-800 dark:text-slate-200">Audio Chime</h4>
+                <p class="text-[11px] text-slate-500 dark:text-slate-400">Play pleasant synthesized harmonic chimes on alert</p>
+              </div>
+              <input
+                type="checkbox"
+                [checked]="settingsService.settings().notificationSound"
+                (change)="settingsService.updateNotificationSound(!settingsService.settings().notificationSound)"
+                class="w-5 h-5 rounded text-indigo-600 focus:ring-indigo-500 cursor-pointer"
+              />
             </div>
-            <input
-              type="checkbox"
-              [checked]="settingsService.settings().notificationSound"
-              (change)="settingsService.updateNotificationSound(!settingsService.settings().notificationSound)"
-              class="w-5 h-5 rounded text-indigo-600 focus:ring-indigo-500 cursor-pointer"
-            />
+
+            @if (settingsService.settings().notificationSound) {
+              <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 p-2.5 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700">
+                <div class="flex-1">
+                  <label class="block text-[11px] font-semibold text-slate-600 dark:text-slate-400 mb-1">
+                    Chime Synthesizer Tone
+                  </label>
+                  <select
+                    [ngModel]="settingsService.settings().soundChime || 'temple'"
+                    (ngModelChange)="onChimeSelected($event)"
+                    class="w-full px-2.5 py-1.5 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-xs font-medium text-slate-900 dark:text-white"
+                  >
+                    <option value="temple">🔔 Tibetan Temple Bell (Rich bronze harmonic overtone)</option>
+                    <option value="singing_bowl">🥣 Himalayan Singing Bowl (432Hz deep meditative resonance)</option>
+                    <option value="digital">⚡ Digital Arp (Modern crisp dual-tone)</option>
+                    <option value="classic">🛎️ Classic Bell (Traditional melodic sine)</option>
+                  </select>
+                </div>
+                <div class="sm:pt-4">
+                  <button
+                    type="button"
+                    (click)="onPreviewTone()"
+                    class="w-full sm:w-auto px-3 py-1.5 rounded-lg text-xs font-semibold bg-indigo-50 dark:bg-indigo-950/70 text-indigo-600 dark:text-indigo-400 border border-indigo-200 dark:border-indigo-800 hover:bg-indigo-100 cursor-pointer"
+                  >
+                    🔊 Test Tone
+                  </button>
+                </div>
+              </div>
+            }
           </div>
 
           <!-- Vibration Toggle -->
@@ -556,6 +589,12 @@ import { DriveFileItem } from '../../core/services/google-drive.service';
         }
 
         <div class="flex flex-wrap gap-2 pt-2">
+          <app-button variant="secondary" size="sm" (clicked)="onPurgeSyncedBlobs()">
+            🧹 Purge Synced Attachment Blobs
+          </app-button>
+          <app-button variant="secondary" size="sm" (clicked)="onArchiveOldCompleted()">
+            📦 Archive Completed (> 6 Months)
+          </app-button>
           <app-button variant="secondary" size="sm" (clicked)="onSeedDemo()">
             🌱 Load Sample Reminders
           </app-button>
@@ -603,6 +642,8 @@ export class SettingsComponent implements OnInit {
   readonly backupService = inject(BackupService);
   readonly i18n = inject(I18nService);
   private readonly indexedDbService = inject(IndexedDbService);
+  private readonly soundService = inject(SoundService);
+  private readonly toast = inject(ToastService);
 
   readonly dbStats = signal<any>(null);
   readonly storageEstimate = signal<any>(null);
@@ -719,6 +760,27 @@ export class SettingsComponent implements OnInit {
     this.dbStats.set(stats);
     const estimate = await this.indexedDbService.getStorageEstimate();
     this.storageEstimate.set(estimate);
+  }
+
+  async onChimeSelected(chime: SoundChimeType) {
+    await this.settingsService.updateSoundChime(chime);
+    this.soundService.playChime(chime);
+  }
+
+  onPreviewTone() {
+    this.soundService.playChime();
+  }
+
+  async onPurgeSyncedBlobs() {
+    const purged = await this.indexedDbService.purgeSyncedAttachmentBlobs();
+    await this.refreshStats();
+    this.toast.success(`Purged ${purged} local cached attachment blob(s). Google Drive links preserved.`);
+  }
+
+  async onArchiveOldCompleted() {
+    const count = await this.indexedDbService.archiveCompletedOlderThan(6);
+    await this.refreshStats();
+    this.toast.info(`Archived/cleaned ${count} completed reminder(s) older than 6 months.`);
   }
 
   async onSeedDemo() {

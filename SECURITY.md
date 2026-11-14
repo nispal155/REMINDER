@@ -51,3 +51,4 @@ Instead, it strictly requests the scoped per-file permission:
 
 - **Angular Sanitization**: Angular natively escapes all dynamic template interpolations, preventing Cross-Site Scripting (XSS).
 - **No `eval` or Unsafe Inline Execution**: All calendar arithmetic and JSON parsing use safe standard JavaScript parsers.
+

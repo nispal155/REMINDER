@@ -95,3 +95,4 @@ The application is architected strictly for a single private user. The Google OA
    - Access token is immediately revoked.
    - User is logged out.
    - An explicit error alert is displayed.
+

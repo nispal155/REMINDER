@@ -221,3 +221,4 @@ export class I18nService {
     return str.replace(/[0-9]/g, match => NEPALI_NUMERALS_MAP[match] || match);
   }
 }
+

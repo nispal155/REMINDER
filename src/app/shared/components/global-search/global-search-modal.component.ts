@@ -142,3 +142,4 @@ export class GlobalSearchModalComponent {
     this.router.navigateByUrl(item.route);
   }
 }
+

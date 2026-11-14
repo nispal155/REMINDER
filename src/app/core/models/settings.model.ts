@@ -5,6 +5,7 @@ export type AppTheme = 'light' | 'dark' | 'system';
 export type CalendarType = 'BS' | 'AD';
 export type WeekStartDay = 'sunday' | 'monday';
 export type AppLanguage = 'en' | 'ne';
+export type SoundChimeType = 'temple' | 'singing_bowl' | 'digital' | 'classic';
 
 export interface AppSettings {
   theme: AppTheme;
@@ -15,6 +16,7 @@ export interface AppSettings {
   weekStartDay: WeekStartDay;
   notificationsEnabled: boolean;
   notificationSound: boolean;
+  soundChime?: SoundChimeType;
   notificationVibration: boolean;
   defaultLeadTime: number; // e.g. 15
   quietHours: QuietHoursConfig;

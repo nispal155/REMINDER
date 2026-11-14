@@ -210,6 +210,8 @@ import { Reminder, REMINDER_CATEGORIES, SnoozeDuration } from '../../core/models
             <app-reminder-card
               [reminder]="reminder"
               (completedToggled)="reminderService.toggleComplete($event)"
+              (subtaskToggled)="reminderService.toggleSubtask($event.reminder.id, $event.subtaskId)"
+              (paidToggled)="reminderService.togglePaid($event.id)"
               (snoozeClicked)="openSnoozeModal($event)"
               (editClicked)="openEditModal($event)"
               (duplicateClicked)="reminderService.duplicateReminder($event)"

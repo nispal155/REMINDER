@@ -1,5 +1,5 @@
 import { Injectable, inject, signal } from '@angular/core';
-import { AppSettings, AppTheme, CalendarType, WeekStartDay } from '../../core/models/settings.model';
+import { AppSettings, AppTheme, CalendarType, WeekStartDay, SoundChimeType } from '../../core/models/settings.model';
 import { QuietHoursConfig } from '../../core/models/notification.model';
 import { SettingsRepository } from '../../database/repositories/settings.repository';
 import { ThemeService } from '../../core/services/theme.service';
@@ -51,6 +51,7 @@ export class SettingsService {
       const weekStartDay = await this.settingsRepo.getSetting<WeekStartDay>('weekStartDay', 'sunday');
       const notificationsEnabled = await this.settingsRepo.getSetting<boolean>('notificationsEnabled', true);
       const notificationSound = await this.settingsRepo.getSetting<boolean>('notificationSound', true);
+      const soundChime = await this.settingsRepo.getSetting<SoundChimeType>('soundChime', 'temple');
       const notificationVibration = await this.settingsRepo.getSetting<boolean>('notificationVibration', true);
       const defaultLeadTime = await this.settingsRepo.getSetting<number>('defaultLeadTime', 15);
       const quietHours = await this.settingsRepo.getSetting<QuietHoursConfig>('quietHours', {
@@ -72,6 +73,7 @@ export class SettingsService {
         weekStartDay,
         notificationsEnabled,
         notificationSound,
+        soundChime,
         notificationVibration,
         defaultLeadTime,
         quietHours,
@@ -107,6 +109,12 @@ export class SettingsService {
     await this.settingsRepo.setSetting('notificationSound', sound);
     this.settings.update(s => ({ ...s, notificationSound: sound }));
     this.toast.info(sound ? 'Notification sound enabled' : 'Notification sound muted');
+  }
+
+  async updateSoundChime(soundChime: SoundChimeType): Promise<void> {
+    await this.settingsRepo.setSetting('soundChime', soundChime);
+    this.settings.update(s => ({ ...s, soundChime }));
+    this.toast.info(`Sound chime set to ${soundChime}`);
   }
 
   async updateNotificationVibration(vibration: boolean): Promise<void> {

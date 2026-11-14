@@ -110,3 +110,4 @@ export class GlobalSearchService {
     return results;
   }
 }
+

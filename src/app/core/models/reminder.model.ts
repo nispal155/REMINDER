@@ -43,6 +43,12 @@ export interface NotificationSchedule {
   minutesBefore: number[]; // e.g. [0, 15, 60]
 }
 
+export interface Subtask {
+  id: string;
+  title: string;
+  completed: boolean;
+}
+
 export interface Reminder {
   id: string;
   title: string;
@@ -58,6 +64,11 @@ export interface Reminder {
   repeatConfig?: RepeatConfig;
   notificationSchedule: NotificationSchedule;
   attachmentIds?: string[];
+  subtasks?: Subtask[];
+  tags?: string[];
+  amount?: number;
+  currency?: string;
+  isPaid?: boolean;
   status: ReminderStatus;
   snoozedUntil?: string; // ISO datetime
   completedAt?: string;

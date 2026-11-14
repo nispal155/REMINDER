@@ -7,7 +7,8 @@ import {
   RepeatType,
   ReminderCategory,
   SnoozeDuration,
-  CalendarInputMode
+  CalendarInputMode,
+  Subtask
 } from '../../core/models/reminder.model';
 import { ReminderRepository } from '../../database/repositories/reminder.repository';
 import { IndexedDbService } from '../../core/services/indexed-db.service';
@@ -28,6 +29,11 @@ export interface CreateReminderDTO {
   category: ReminderCategory | string;
   repeatType: RepeatType;
   attachmentIds?: string[];
+  subtasks?: Subtask[];
+  tags?: string[];
+  amount?: number;
+  currency?: string;
+  isPaid?: boolean;
   files?: File[];
   notificationSchedule?: {
     remindAtTime: boolean;
@@ -77,14 +83,15 @@ export class ReminderService {
     const sort = this.selectedSort();
     const today = this.todayIso;
 
-    // 1. Text Search (title, description, category, dateBS, dateAD)
+    // 1. Text Search (title, description, category, dateBS, dateAD, tags)
     if (query) {
       list = list.filter(r =>
         r.title.toLowerCase().includes(query) ||
         (r.description && r.description.toLowerCase().includes(query)) ||
         r.category.toLowerCase().includes(query) ||
         r.dateBS.includes(query) ||
-        r.dateAD.includes(query)
+        r.dateAD.includes(query) ||
+        (r.tags && r.tags.some(t => t.toLowerCase().includes(query)))
       );
     }
 
@@ -231,6 +238,11 @@ export class ReminderService {
         minutesBefore: [15]
       },
       attachmentIds: dto.attachmentIds || [],
+      subtasks: dto.subtasks || [],
+      tags: dto.tags || [],
+      amount: dto.amount,
+      currency: dto.currency || (dto.amount !== undefined ? 'NPR' : undefined),
+      isPaid: dto.isPaid ?? false,
       status: 'pending',
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString()
@@ -321,6 +333,60 @@ export class ReminderService {
       await this.syncService.recordLocalChange('reminder', id, 'update', reopened);
     }
     this.toast.info('Reminder reopened');
+  }
+
+  /**
+   * Toggle a subtask completion status
+   */
+  async toggleSubtask(reminderId: string, subtaskId: string): Promise<void> {
+    const reminder = await this.reminderRepo.getById(reminderId);
+    if (!reminder || !reminder.subtasks) return;
+    const subtasks = reminder.subtasks.map(st =>
+      st.id === subtaskId ? { ...st, completed: !st.completed } : st
+    );
+    await this.reminderRepo.update(reminderId, {
+      subtasks,
+      updatedAt: new Date().toISOString()
+    });
+    const updated = await this.reminderRepo.getById(reminderId);
+    if (updated) {
+      await this.syncService.recordLocalChange('reminder', reminderId, 'update', updated);
+    }
+  }
+
+  /**
+   * Add a subtask to an existing reminder
+   */
+  async addSubtask(reminderId: string, title: string): Promise<void> {
+    const reminder = await this.reminderRepo.getById(reminderId);
+    if (!reminder || !title.trim()) return;
+    const subtasks = [...(reminder.subtasks || []), { id: uuidv4(), title: title.trim(), completed: false }];
+    await this.reminderRepo.update(reminderId, {
+      subtasks,
+      updatedAt: new Date().toISOString()
+    });
+    const updated = await this.reminderRepo.getById(reminderId);
+    if (updated) {
+      await this.syncService.recordLocalChange('reminder', reminderId, 'update', updated);
+    }
+  }
+
+  /**
+   * Toggle bill paid status
+   */
+  async togglePaid(reminderId: string): Promise<void> {
+    const reminder = await this.reminderRepo.getById(reminderId);
+    if (!reminder) return;
+    const isPaid = !reminder.isPaid;
+    await this.reminderRepo.update(reminderId, {
+      isPaid,
+      updatedAt: new Date().toISOString()
+    });
+    const updated = await this.reminderRepo.getById(reminderId);
+    if (updated) {
+      await this.syncService.recordLocalChange('reminder', reminderId, 'update', updated);
+    }
+    this.toast.info(isPaid ? 'Marked as Paid' : 'Marked as Unpaid');
   }
 
   /**

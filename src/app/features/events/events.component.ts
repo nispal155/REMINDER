@@ -262,3 +262,4 @@ export class EventsComponent implements OnInit {
     this.showModal.set(false);
   }
 }
+

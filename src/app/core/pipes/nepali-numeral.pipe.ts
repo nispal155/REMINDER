@@ -14,3 +14,4 @@ export class NepaliNumeralPipe implements PipeTransform {
     return this.i18n.formatNumerals(value);
   }
 }
+

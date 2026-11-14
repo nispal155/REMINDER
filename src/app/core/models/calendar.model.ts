@@ -32,6 +32,8 @@ export interface CalendarDayCell {
   remindersCount: number;
   eventsCount: number;
   festival?: FestivalInfo;
+  tithi?: string;
+  isGazettedHoliday?: boolean;
 }
 
 export interface BsMonthMeta {

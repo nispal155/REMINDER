@@ -95,3 +95,4 @@ When concurrent modifications collide, `SyncService.activeConflict` emits the di
    - Uploads to the appropriate Google Drive folder using multipart binary upload.
    - Receives `driveFileId` from Google Drive API.
    - Updates IndexedDB with `isSynced: true` and `driveFileId`.
+

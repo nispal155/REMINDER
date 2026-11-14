@@ -2,6 +2,7 @@ import Dexie, { Table } from 'dexie';
 import { Reminder } from '../core/models/reminder.model';
 import { EventRecord } from '../core/models/event.model';
 import { Birthday } from '../core/models/birthday.model';
+import { Habit } from '../core/models/habit.model';
 import { SettingRecord } from '../core/models/settings.model';
 import {
   AttachmentRecord,
@@ -14,6 +15,7 @@ export class ReminderDatabase extends Dexie {
   reminders!: Table<Reminder, string>;
   events!: Table<EventRecord, string>;
   birthdays!: Table<Birthday, string>;
+  habits!: Table<Habit, string>;
   settings!: Table<SettingRecord, string>;
   attachments!: Table<AttachmentRecord, string>;
   notificationJobs!: Table<NotificationJobRecord, string>;
@@ -33,6 +35,11 @@ export class ReminderDatabase extends Dexie {
       notificationJobs: 'id, entityId, scheduledTime, status',
       syncQueue: 'id, entityType, entityId, action, status, createdAt',
       metadata: 'key'
+    });
+
+    // Version 2: Habits table
+    this.version(2).stores({
+      habits: 'id, title, createdAt, updatedAt'
     });
   }
 }
