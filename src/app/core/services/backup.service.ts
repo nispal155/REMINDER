@@ -4,6 +4,7 @@ import { GoogleDriveService, DriveFileItem } from './google-drive.service';
 import { AuthService } from './auth.service';
 import { ReminderSchedulerService } from './reminder-scheduler.service';
 import { ToastService } from './toast.service';
+import { CryptoService, EncryptedPackage } from './crypto.service';
 import { BackupSnapshot, AttachmentRecord } from '../models/sync.model';
 import { Reminder } from '../models/reminder.model';
 import { EventRecord } from '../models/event.model';
@@ -12,6 +13,7 @@ import { SettingRecord } from '../models/settings.model';
 import { environment } from '../../../environments/environment';
 
 const STORAGE_KEY_LAST_BACKUP = 'reminder_last_backup_date';
+const MAX_BACKUP_SIZE = 50 * 1024 * 1024; // 50 MB limit
 
 @Injectable({
   providedIn: 'root'
@@ -21,6 +23,7 @@ export class BackupService {
   private readonly authService = inject(AuthService);
   private readonly scheduler = inject(ReminderSchedulerService);
   private readonly toast = inject(ToastService);
+  private readonly cryptoService = inject(CryptoService);
 
   /**
    * Generates a complete serialized snapshot of local IndexedDB data
@@ -57,8 +60,9 @@ export class BackupService {
 
   /**
    * Cloud Backup: creates timestamped snapshot in REMINDER_APP/backups/
+   * Optionally encrypted with user passphrase (AES-256-GCM)
    */
-  async backupToDrive(): Promise<string> {
+  async backupToDrive(passphrase?: string): Promise<string> {
     if (!this.authService.isAuthenticated()) {
       throw new Error('Please sign in to Google to create cloud backups.');
     }
@@ -71,11 +75,22 @@ export class BackupService {
 
     const snapshot = await this.createSnapshot();
     const dateStr = new Date().toISOString().replace(/[:.]/g, '-');
-    const fileName = `REMINDER_BACKUP_${dateStr}.json`;
 
-    const fileId = await this.driveService.uploadJsonFile(fileName, snapshot, backupsFolderId);
+    let fileId: string;
+    if (passphrase && passphrase.trim().length > 0) {
+      // Encrypt sensitive snapshot
+      const rawJson = JSON.stringify(snapshot);
+      const encryptedPkg = await this.cryptoService.encrypt(rawJson, passphrase, environment.appVersion);
+      const fileName = `REMINDER_BACKUP_${dateStr}.enc`;
+      fileId = await this.driveService.uploadJsonFile(fileName, encryptedPkg, backupsFolderId);
+      this.toast.success(`Encrypted cloud backup saved (${snapshot.data.reminders.length} reminders)`);
+    } else {
+      const fileName = `REMINDER_BACKUP_${dateStr}.json`;
+      fileId = await this.driveService.uploadJsonFile(fileName, snapshot, backupsFolderId);
+      this.toast.success(`Cloud backup saved (${snapshot.data.reminders.length} reminders)`);
+    }
+
     localStorage.setItem(STORAGE_KEY_LAST_BACKUP, new Date().toISOString());
-    this.toast.success(`Cloud backup saved (${snapshot.data.reminders.length} reminders)`);
     return fileId;
   }
 
@@ -92,46 +107,87 @@ export class BackupService {
   }
 
   /**
-   * Restore state from a Google Drive backup file
+   * Restore state from a Google Drive backup file (supports both .json and .enc)
    */
-  async restoreFromDrive(fileId: string): Promise<void> {
-    const snapshot = await this.driveService.downloadJsonFile<BackupSnapshot>(fileId);
+  async restoreFromDrive(fileId: string, passphrase?: string): Promise<void> {
+    const rawData = await this.driveService.downloadJsonFile<any>(fileId);
+
+    let snapshot: BackupSnapshot;
+    if (rawData?.format === 'REMINDER_ENC_V1') {
+      if (!passphrase) {
+        throw new Error('This is an encrypted backup. Passphrase is required to restore.');
+      }
+      const decryptedJson = await this.cryptoService.decrypt(rawData as EncryptedPackage, passphrase);
+      snapshot = JSON.parse(decryptedJson);
+    } else {
+      snapshot = rawData as BackupSnapshot;
+    }
+
     await this.applySnapshot(snapshot);
     this.toast.success('Backup successfully restored from Google Drive!');
   }
 
   /**
-   * Local Export: downloads JSON file directly to device
+   * Local Export: downloads JSON file or encrypted .enc package directly to device
    */
-  async exportLocalJson(): Promise<void> {
+  async exportLocalJson(passphrase?: string): Promise<void> {
     const snapshot = await this.createSnapshot();
-    const jsonStr = JSON.stringify(snapshot, null, 2);
-    const blob = new Blob([jsonStr], { type: 'application/json' });
-    const url = URL.createObjectURL(blob);
-
     const dateStr = new Date().toISOString().slice(0, 10);
+
+    let blob: Blob;
+    let fileName: string;
+
+    if (passphrase && passphrase.trim().length > 0) {
+      const rawJson = JSON.stringify(snapshot);
+      const encryptedPkg = await this.cryptoService.encrypt(rawJson, passphrase, environment.appVersion);
+      blob = new Blob([JSON.stringify(encryptedPkg, null, 2)], { type: 'application/octet-stream' });
+      fileName = `REMINDER_BACKUP_${dateStr}.enc`;
+    } else {
+      const jsonStr = JSON.stringify(snapshot, null, 2);
+      blob = new Blob([jsonStr], { type: 'application/json' });
+      fileName = `REMINDER_BACKUP_${dateStr}.json`;
+    }
+
+    const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `REMINDER_BACKUP_${dateStr}.json`;
+    a.download = fileName;
     a.click();
     URL.revokeObjectURL(url);
-    this.toast.success('Backup file exported successfully');
+    this.toast.success(`Backup file exported successfully (${fileName})`);
   }
 
   /**
-   * Local Import: validates and restores from a user-supplied JSON file
+   * Local Import: validates and restores from a user-supplied JSON or .enc file
    */
-  async importLocalJson(file: File): Promise<void> {
+  async importLocalJson(file: File, passphrase?: string): Promise<void> {
+    if (file.size > MAX_BACKUP_SIZE) {
+      throw new Error(`Backup file exceeds maximum allowed limit (50 MB). Size: ${(file.size / (1024 * 1024)).toFixed(1)} MB`);
+    }
+
     const text = await file.text();
     let snapshot: BackupSnapshot;
 
-    try {
-      snapshot = JSON.parse(text);
-    } catch {
-      throw new Error('The selected file is not a valid JSON document.');
+    if (this.cryptoService.isEncryptedPackage(text)) {
+      if (!passphrase) {
+        throw new Error('This file is password-protected. Please enter your encryption passphrase.');
+      }
+      const pkg: EncryptedPackage = JSON.parse(text);
+      const decryptedJson = await this.cryptoService.decrypt(pkg, passphrase);
+      try {
+        snapshot = JSON.parse(decryptedJson);
+      } catch {
+        throw new Error('Decrypted content is not valid JSON.');
+      }
+    } else {
+      try {
+        snapshot = JSON.parse(text);
+      } catch {
+        throw new Error('The selected file is not a valid JSON document.');
+      }
     }
 
-    if (!snapshot.version || !snapshot.data) {
+    if (!snapshot || typeof snapshot.version !== 'number' || !snapshot.data) {
       throw new Error('The file does not match the REMINDER backup schema.');
     }
 
@@ -140,38 +196,47 @@ export class BackupService {
   }
 
   /**
-   * Atomically overwrites IndexedDB tables with snapshot data
+   * Atomic restoration of all entities into IndexedDB
    */
-  async applySnapshot(snapshot: BackupSnapshot): Promise<void> {
-    await db.transaction('rw', [db.reminders, db.events, db.birthdays, db.settings, db.attachments], async () => {
-      // Clear existing records
-      await db.reminders.clear();
-      await db.events.clear();
-      await db.birthdays.clear();
-      await db.settings.clear();
-      await db.attachments.clear();
+  private async applySnapshot(snapshot: BackupSnapshot): Promise<void> {
+    const { reminders, events, birthdays, settings, attachmentsMetadata } = snapshot.data;
 
-      // Repopulate
-      if (snapshot.data.reminders?.length) {
-        await db.reminders.bulkAdd(snapshot.data.reminders as Reminder[]);
+    await db.transaction('rw', [db.reminders, db.events, db.birthdays, db.settings, db.attachments, db.notificationJobs], async () => {
+      if (reminders && Array.isArray(reminders)) {
+        await db.reminders.clear();
+        await db.reminders.bulkAdd(reminders as Reminder[]);
       }
-      if (snapshot.data.events?.length) {
-        await db.events.bulkAdd(snapshot.data.events as EventRecord[]);
+      if (events && Array.isArray(events)) {
+        await db.events.clear();
+        await db.events.bulkAdd(events as EventRecord[]);
       }
-      if (snapshot.data.birthdays?.length) {
-        await db.birthdays.bulkAdd(snapshot.data.birthdays as Birthday[]);
+      if (birthdays && Array.isArray(birthdays)) {
+        await db.birthdays.clear();
+        await db.birthdays.bulkAdd(birthdays as Birthday[]);
       }
-      if (snapshot.data.settings?.length) {
-        await db.settings.bulkAdd(snapshot.data.settings as SettingRecord[]);
+      if (settings && Array.isArray(settings)) {
+        await db.settings.clear();
+        await db.settings.bulkAdd(settings as SettingRecord[]);
       }
-      if (snapshot.data.attachmentsMetadata?.length) {
-        await db.attachments.bulkAdd(snapshot.data.attachmentsMetadata as AttachmentRecord[]);
+      if (attachmentsMetadata && Array.isArray(attachmentsMetadata)) {
+        await db.attachments.clear();
+        const records: AttachmentRecord[] = attachmentsMetadata.map(meta => ({
+          ...meta,
+          localBlob: undefined
+        }));
+        await db.attachments.bulkAdd(records);
       }
+
+      await db.notificationJobs.clear();
     });
 
-    // Reschedule reminder notifications
-    const allReminders = await db.reminders.toArray();
-    await this.scheduler.rebuildAllJobs(allReminders);
+    // Re-schedule notification jobs from restored reminders
+    try {
+      if (reminders && Array.isArray(reminders)) {
+        await this.scheduler.rebuildAllJobs(reminders as Reminder[]);
+      }
+    } catch (err) {
+      console.warn('Post-restore rescheduling alert:', err);
+    }
   }
 }
-

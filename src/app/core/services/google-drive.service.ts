@@ -220,9 +220,54 @@ export class GoogleDriveService {
   }
 
   /**
-   * Deletes a file by ID.
+   * Deletes a file by ID with strict REMINDER_APP lineage verification.
+   * Prevents accidental deletion of unrelated user files in Google Drive.
    */
   async deleteFile(fileId: string): Promise<void> {
+    if (!fileId || typeof fileId !== 'string') {
+      throw new Error('Invalid file ID provided for deletion.');
+    }
+
+    try {
+      // 1. Fetch file metadata including its parent folder IDs
+      const metaRes = await fetch(`${DRIVE_API_BASE}/files/${fileId}?fields=id,name,parents`, {
+        headers: this.getHeaders()
+      });
+
+      if (metaRes.status === 404) {
+        return; // File already deleted
+      }
+
+      if (metaRes.ok) {
+        const fileMeta = await metaRes.json();
+        const parents: string[] = fileMeta.parents || [];
+
+        // 2. Validate parents belong to REMINDER_APP hierarchy
+        const folders = await this.initFolderStructure();
+        const allowedFolderIds = new Set<string>([
+          folders.appRootId,
+          folders.dataFolderId,
+          folders.attachmentsFolderId,
+          folders.imagesFolderId,
+          folders.documentsFolderId,
+          folders.billsFolderId,
+          folders.backupsFolderId
+        ].filter(Boolean) as string[]);
+
+        const belongsToApp = parents.some(p => allowedFolderIds.has(p));
+        if (!belongsToApp) {
+          throw new Error(`Security Violation: File '${fileId}' (${fileMeta.name}) does not belong to REMINDER_APP. Deletion aborted.`);
+        }
+      }
+    } catch (err: unknown) {
+      if (err instanceof Error && err.message.includes('Security Violation')) {
+        throw err;
+      }
+      // If metadata lookup fails due to transient network, verify before proceed
+      console.warn('Pre-deletion metadata check warning:', err);
+    }
+
+    // 3. Safe deletion execution
     const res = await fetch(`${DRIVE_API_BASE}/files/${fileId}`, {
       method: 'DELETE',
       headers: this.getHeaders()

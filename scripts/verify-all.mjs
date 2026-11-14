@@ -14,7 +14,8 @@ const suites = [
   { name: 'Phase 3: Notifications & Scheduler', script: 'node scripts/verify-phase3.mjs' },
   { name: 'Phase 4: Google Drive Sync & Backups', script: 'node scripts/verify-phase4.mjs' },
   { name: 'Phase 5: Advanced Features & Production', script: 'node scripts/verify-phase5.mjs' },
-  { name: 'Extensions: NLP, Tithi, Subtasks & Expense Forecast', script: 'node scripts/verify-extensions.mjs' }
+  { name: 'Extensions: NLP, Tithi, Subtasks & Expense Forecast', script: 'node scripts/verify-extensions.mjs' },
+  { name: 'Security & Privacy Architecture', script: 'node scripts/verify-security.mjs' }
 ];
 
 let allPassed = true;

@@ -16,13 +16,31 @@ export class NotificationService {
   private readonly soundService = inject(SoundService);
 
   readonly permissionState = signal<NotificationPermissionState>('default');
+  readonly privacyMode = signal<'detailed' | 'private'>('detailed');
   readonly actionReceived$ = new Subject<NotificationActionMessage>();
   private swRegistration: ServiceWorkerRegistration | null = null;
 
   constructor() {
     this.checkInitialPermission();
+    this.initPrivacyMode();
     this.initServiceWorkerHandle();
     this.listenToServiceWorkerMessages();
+  }
+
+  private initPrivacyMode() {
+    if (typeof localStorage !== 'undefined') {
+      const saved = localStorage.getItem('reminder_notif_privacy');
+      if (saved === 'private' || saved === 'detailed') {
+        this.privacyMode.set(saved);
+      }
+    }
+  }
+
+  setPrivacyMode(mode: 'detailed' | 'private'): void {
+    this.privacyMode.set(mode);
+    if (typeof localStorage !== 'undefined') {
+      localStorage.setItem('reminder_notif_privacy', mode);
+    }
   }
 
   private listenToServiceWorkerMessages() {
@@ -125,8 +143,13 @@ export class NotificationService {
       }
     }
 
+    // Privacy Masking: if privacy mode is set to 'private', mask title and body
+    const isPrivate = this.privacyMode() === 'private';
+    const displayTitle = isPrivate ? '🔔 Reminder' : title;
+    const displayBody = isPrivate ? 'You have a scheduled reminder' : options.body;
+
     const notifOptions: NotificationOptions & { actions?: Array<{ action: string; title: string }> } = {
-      body: options.body,
+      body: displayBody,
       icon: '/icons/icon-192x192.png',
       badge: '/icons/icon-72x72.png',
       tag: options.tag || 'reminder-' + Date.now(),
@@ -141,7 +164,7 @@ export class NotificationService {
     // Prefer ServiceWorker showNotification so actions work in PWA
     if (this.swRegistration && 'showNotification' in this.swRegistration) {
       try {
-        await this.swRegistration.showNotification(title, notifOptions);
+        await this.swRegistration.showNotification(displayTitle, notifOptions);
         return true;
       } catch (e) {
         console.warn('ServiceWorker showNotification failed, using fallback Notification:', e);
@@ -151,7 +174,7 @@ export class NotificationService {
     // Fallback to standard window Notification
     if (typeof window !== 'undefined' && 'Notification' in window) {
       try {
-        const notif = new Notification(title, notifOptions);
+        const notif = new Notification(displayTitle, notifOptions);
         notif.onclick = () => {
           window.focus();
           notif.close();

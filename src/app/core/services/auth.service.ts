@@ -94,8 +94,13 @@ export class AuthService {
 
   private restoreSession(): void {
     try {
-      const savedToken = localStorage.getItem(STORAGE_KEY_TOKEN);
-      const savedExpiry = Number(localStorage.getItem(STORAGE_KEY_TOKEN_EXPIRY) || '0');
+      // Security: Scrub any legacy tokens previously written to persistent localStorage
+      localStorage.removeItem(STORAGE_KEY_TOKEN);
+      localStorage.removeItem(STORAGE_KEY_TOKEN_EXPIRY);
+
+      // Session tokens are kept strictly in transient sessionStorage or memory
+      const savedToken = sessionStorage.getItem(STORAGE_KEY_TOKEN);
+      const savedExpiry = Number(sessionStorage.getItem(STORAGE_KEY_TOKEN_EXPIRY) || '0');
       const savedUserStr = localStorage.getItem(STORAGE_KEY_USER);
 
       if (savedToken && savedExpiry > Date.now() && savedUserStr) {
@@ -104,11 +109,11 @@ export class AuthService {
         this.tokenExpiry.set(savedExpiry);
         this.currentUser.set(user);
 
-        // Verify authorized email
+        // Verify authorized email (Single-user allowlist)
         const allowedEmail = this.getAuthorizedEmail();
         if (allowedEmail && user.email.toLowerCase() !== allowedEmail.toLowerCase()) {
           this.logout();
-          this.authError.set(`Unauthorized account: ${user.email}. Expected: ${allowedEmail}`);
+          this.authError.set(`Unauthorized account: ${user.email}. Access restricted.`);
         }
       }
     } catch {
@@ -163,13 +168,13 @@ export class AuthService {
                 return;
               }
 
-              // Store session
+              // Store session (Security: sensitive token in transient sessionStorage only)
               this.token.set(accessToken);
               this.tokenExpiry.set(expiryTime);
               this.currentUser.set(userInfo);
 
-              localStorage.setItem(STORAGE_KEY_TOKEN, accessToken);
-              localStorage.setItem(STORAGE_KEY_TOKEN_EXPIRY, String(expiryTime));
+              sessionStorage.setItem(STORAGE_KEY_TOKEN, accessToken);
+              sessionStorage.setItem(STORAGE_KEY_TOKEN_EXPIRY, String(expiryTime));
               localStorage.setItem(STORAGE_KEY_USER, JSON.stringify(userInfo));
 
               this.isLoading.set(false);
@@ -211,6 +216,8 @@ export class AuthService {
     this.currentUser.set(null);
     this.authError.set(null);
 
+    sessionStorage.removeItem(STORAGE_KEY_TOKEN);
+    sessionStorage.removeItem(STORAGE_KEY_TOKEN_EXPIRY);
     localStorage.removeItem(STORAGE_KEY_TOKEN);
     localStorage.removeItem(STORAGE_KEY_TOKEN_EXPIRY);
     localStorage.removeItem(STORAGE_KEY_USER);

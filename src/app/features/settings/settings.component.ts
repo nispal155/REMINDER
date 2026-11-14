@@ -15,7 +15,7 @@ import { ToastService } from '../../core/services/toast.service';
 import { CardComponent } from '../../shared/components/card/card.component';
 import { ButtonComponent } from '../../shared/components/button/button.component';
 import { AppTheme, CalendarType, SoundChimeType } from '../../core/models/settings.model';
-import { DriveFileItem } from '../../core/services/google-drive.service';
+import { GoogleDriveService, DriveFileItem } from '../../core/services/google-drive.service';
 
 @Component({
   selector: 'app-settings',
@@ -319,6 +319,24 @@ import { DriveFileItem } from '../../core/services/google-drive.service';
           </p>
         </div>
 
+        <!-- Optional Encryption Passphrase -->
+        <div class="p-3 my-3 rounded-xl border border-indigo-100 dark:border-indigo-900/40 bg-indigo-50/40 dark:bg-indigo-950/20">
+          <label class="block text-xs font-semibold text-indigo-900 dark:text-indigo-300 mb-1">
+            🔒 Optional Encryption Passphrase (AES-256-GCM)
+          </label>
+          <div class="flex space-x-2">
+            <input
+              type="password"
+              [(ngModel)]="backupPassphrase"
+              placeholder="Enter strong passphrase to encrypt backups (.enc)"
+              class="flex-1 px-3 py-1.5 text-xs rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-white"
+            />
+          </div>
+          <p class="text-[10px] text-slate-500 dark:text-slate-400 mt-1">
+            When set, cloud and local backups are encrypted client-side using Web Crypto API. If left empty, standard JSON is used.
+          </p>
+        </div>
+
         <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-4">
           <!-- Cloud Backup Action -->
           <div class="p-3.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-800/40 space-y-2">
@@ -353,8 +371,8 @@ import { DriveFileItem } from '../../core/services/google-drive.service';
                 Export JSON
               </app-button>
               <label class="inline-flex items-center justify-center px-3 py-1.5 text-xs font-semibold rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700 border border-slate-200 dark:border-slate-700 cursor-pointer transition-all">
-                Import JSON
-                <input type="file" accept=".json" class="hidden" (change)="onImportLocalJson($event)" />
+                Import Backup
+                <input type="file" accept=".json,.enc" class="hidden" (change)="onImportLocalJson($event)" />
               </label>
             </div>
           </div>
@@ -442,6 +460,24 @@ import { DriveFileItem } from '../../core/services/google-drive.service';
 
         <!-- Notification Toggles -->
         <div class="space-y-3">
+          <!-- Notification Privacy Setting -->
+          <div class="flex items-center justify-between p-3 rounded-xl bg-slate-50 dark:bg-slate-800/40 border border-slate-100 dark:border-slate-800">
+            <div>
+              <h4 class="text-xs sm:text-sm font-medium text-slate-800 dark:text-slate-200">Notification Privacy</h4>
+              <p class="text-[11px] text-slate-500 dark:text-slate-400">
+                Detailed reveals title & time; Private masks content on lock screens.
+              </p>
+            </div>
+            <select
+              [value]="notificationService.privacyMode()"
+              (change)="onPrivacyModeChange($event)"
+              class="px-2.5 py-1 text-xs rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-white cursor-pointer font-medium"
+            >
+              <option value="detailed">Detailed (Full details)</option>
+              <option value="private">Private (Masked)</option>
+            </select>
+          </div>
+
           <!-- Enable Notifications Toggle -->
           <div class="flex items-center justify-between py-2 border-b border-slate-100 dark:border-slate-800">
             <div>
@@ -603,7 +639,15 @@ import { DriveFileItem } from '../../core/services/google-drive.service';
             🌱 Load Sample Reminders
           </app-button>
           <app-button variant="danger" size="sm" (clicked)="onClearDatabase()">
-            🗑️ Clear All Local Data
+            🗑️ Clear Local Data
+          </app-button>
+          <app-button
+            variant="danger"
+            size="sm"
+            (clicked)="onDeleteCloudData()"
+            [disabled]="!authService.isAuthenticated()"
+          >
+            ⚠️ Delete Google Drive Cloud Data
           </app-button>
         </div>
       </app-card>
@@ -644,6 +688,7 @@ export class SettingsComponent implements OnInit {
   readonly authService = inject(AuthService);
   readonly syncService = inject(SyncService);
   readonly backupService = inject(BackupService);
+  readonly driveService = inject(GoogleDriveService);
   readonly i18n = inject(I18nService);
   private readonly indexedDbService = inject(IndexedDbService);
   private readonly soundService = inject(SoundService);
@@ -655,6 +700,7 @@ export class SettingsComponent implements OnInit {
 
   customClientId = '';
   customAuthorizedEmail = '';
+  backupPassphrase = '';
 
   async ngOnInit() {
     this.customClientId = this.authService.getClientId();
@@ -673,6 +719,14 @@ export class SettingsComponent implements OnInit {
     this.authService.setAuthorizedEmail(this.customAuthorizedEmail);
   }
 
+  onPrivacyModeChange(event: Event) {
+    const sel = event.target as HTMLSelectElement;
+    if (sel.value === 'detailed' || sel.value === 'private') {
+      this.notificationService.setPrivacyMode(sel.value);
+      this.toast.info(`Notification privacy set to ${sel.value}`);
+    }
+  }
+
   async onSignIn() {
     await this.authService.login();
     if (this.authService.isAuthenticated()) {
@@ -684,6 +738,10 @@ export class SettingsComponent implements OnInit {
   async onSignOut() {
     await this.authService.logout();
     this.driveBackups.set([]);
+    if (confirm('Signed out of Google. Do you also want to clear local reminder data on this device? (Select Cancel to keep your local data safe)')) {
+      await this.settingsService.clearDatabase();
+      await this.refreshStats();
+    }
   }
 
   async onSyncNow() {
@@ -692,7 +750,7 @@ export class SettingsComponent implements OnInit {
   }
 
   async onBackupToDrive() {
-    await this.backupService.backupToDrive();
+    await this.backupService.backupToDrive(this.backupPassphrase);
     await this.onLoadDriveBackups();
   }
 
@@ -703,13 +761,19 @@ export class SettingsComponent implements OnInit {
 
   async onRestoreFromDrive(fileId: string) {
     if (confirm('Restoring this backup will replace current local reminders. Do you want to proceed?')) {
-      await this.backupService.restoreFromDrive(fileId);
+      let pass: string | undefined = this.backupPassphrase;
+      const target = this.driveBackups().find(b => b.id === fileId);
+      if (target?.name?.endsWith('.enc') && (!pass || pass.trim().length === 0)) {
+        pass = prompt('Enter decryption passphrase for this backup:') || undefined;
+        if (!pass) return;
+      }
+      await this.backupService.restoreFromDrive(fileId, pass);
       await this.refreshStats();
     }
   }
 
   async onExportLocalJson() {
-    await this.backupService.exportLocalJson();
+    await this.backupService.exportLocalJson(this.backupPassphrase);
   }
 
   async onImportLocalJson(event: Event) {
@@ -717,7 +781,15 @@ export class SettingsComponent implements OnInit {
     if (input.files && input.files.length > 0) {
       const file = input.files[0];
       if (confirm(`Import ${file.name}? This will restore data into your local database.`)) {
-        await this.backupService.importLocalJson(file);
+        let pass: string | undefined = this.backupPassphrase;
+        if (file.name.endsWith('.enc') && (!pass || pass.trim().length === 0)) {
+          pass = prompt('Enter decryption passphrase for this encrypted backup:') || undefined;
+          if (!pass) {
+            input.value = '';
+            return;
+          }
+        }
+        await this.backupService.importLocalJson(file, pass);
         await this.refreshStats();
       }
       input.value = '';
@@ -793,9 +865,26 @@ export class SettingsComponent implements OnInit {
   }
 
   async onClearDatabase() {
-    if (confirm('Are you sure you want to clear all reminders, events, and birthdays from your local database?')) {
+    if (confirm('Are you sure you want to clear all reminders, events, and birthdays from your local database? Your Google Drive cloud backup will remain safe.')) {
       await this.settingsService.clearDatabase();
       await this.refreshStats();
+    }
+  }
+
+  async onDeleteCloudData() {
+    if (!confirm('⚠️ WARNING: This will permanently delete your REMINDER_APP folder and backups from Google Drive.\n\nYour local device data will remain intact. Proceed?')) {
+      return;
+    }
+    try {
+      const folders = await this.driveService.initFolderStructure();
+      if (folders.appRootId) {
+        await this.driveService.deleteFile(folders.appRootId);
+        this.toast.success('Google Drive cloud data permanently deleted.');
+        this.driveBackups.set([]);
+      }
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : 'Unknown error';
+      this.toast.error('Failed to delete cloud data: ' + msg);
     }
   }
 }
