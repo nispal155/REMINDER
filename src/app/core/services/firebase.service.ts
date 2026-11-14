@@ -25,6 +25,11 @@ export class FirebaseService {
 
     if (this.isInitialized) return;
 
+    if (!environment.firebaseConfig?.apiKey) {
+      // Firebase not configured in environment/.env - skip initialization
+      return;
+    }
+
     try {
       // 1. Initialize Firebase App with user credentials
       this.app = initializeApp(environment.firebaseConfig);

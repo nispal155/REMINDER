@@ -31,16 +31,6 @@
       "icons": [{ "src": "icons/icon-96x96.png", "sizes": "96x96" }]
     }
   ],
-  "share_target": {
-    "action": "/reminders",
-    "method": "GET",
-    "enctype": "application/x-www-form-urlencoded",
-    "params": {
-      "title": "title",
-      "text": "text",
-      "url": "url"
-    }
-  },
   "icons": [
     {
       "src": "icons/icon-72x72.png",
