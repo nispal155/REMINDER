@@ -21,3 +21,4 @@ export const authAllowlistGuard: CanActivateFn = () => {
 
   return true;
 };
+
