@@ -130,6 +130,7 @@ export class IndexedDbService {
       {
         id: 'sample-bday-1',
         name: 'Aarav Sharma',
+        type: 'birthday',
         dateAD: todayStr,
         dateBS: '2081-07-28',
         relationship: 'family',

@@ -1,11 +1,13 @@
-import { Component, inject, signal, OnInit, OnDestroy } from '@angular/core';
+import { Component, inject, signal, computed, OnInit, OnDestroy } from '@angular/core';
 import { CommonModule } from '@angular/common';
+import { RouterModule } from '@angular/router';
 import { ReminderService } from '../reminders/reminder.service';
 import { NepaliCalendarService } from '../../core/services/nepali-calendar.service';
+import { FestivalService, UpcomingFestivalItem } from '../../core/services/festival.service';
+import { BirthdayService } from '../birthdays/birthday.service';
 import { CardComponent } from '../../shared/components/card/card.component';
 import { ButtonComponent } from '../../shared/components/button/button.component';
 import { ModalComponent } from '../../shared/components/modal/modal.component';
-import { EmptyStateComponent } from '../../shared/components/empty-state/empty-state.component';
 import { ReminderFormComponent } from '../reminders/components/reminder-form/reminder-form.component';
 import { SnoozeModalComponent } from '../reminders/components/snooze-modal/snooze-modal.component';
 import { Reminder, Priority, SnoozeDuration } from '../../core/models/reminder.model';
@@ -16,10 +18,10 @@ import { FestivalInfo } from '../../core/models/calendar.model';
   standalone: true,
   imports: [
     CommonModule,
+    RouterModule,
     CardComponent,
     ButtonComponent,
     ModalComponent,
-    EmptyStateComponent,
     ReminderFormComponent,
     SnoozeModalComponent
   ],
@@ -131,16 +133,18 @@ import { FestivalInfo } from '../../core/models/calendar.model';
         <!-- Completed -->
         <app-card>
           <div class="flex items-center justify-between">
-            <span class="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">Completed</span>
+            <span class="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">Completion Rate</span>
             <div class="w-8 h-8 rounded-xl bg-emerald-50 dark:bg-emerald-950/70 text-emerald-600 dark:text-emerald-400 flex items-center justify-center text-sm font-bold">
               ✓
             </div>
           </div>
           <div class="mt-3 flex items-baseline justify-between">
-            <span class="text-2xl sm:text-3xl font-black text-slate-900 dark:text-white">
-              {{ reminderService.completed().length }}
+            <span class="text-2xl sm:text-3xl font-black text-emerald-600 dark:text-emerald-400">
+              {{ completionRate() }}%
             </span>
-            <span class="text-xs text-emerald-500 font-bold">Archived</span>
+            <span class="text-xs text-slate-400 font-medium">
+              {{ reminderService.completed().length }}/{{ totalReminders() }}
+            </span>
           </div>
         </app-card>
       </div>
@@ -188,6 +192,103 @@ import { FestivalInfo } from '../../core/models/calendar.model';
         </div>
       }
 
+      <!-- Category Breakdown Progress Bar -->
+      @if (totalReminders() > 0) {
+        <app-card>
+          <div class="flex items-center justify-between mb-3">
+            <h3 class="text-sm font-bold text-slate-900 dark:text-white">Productivity by Category</h3>
+            <span class="text-xs text-slate-500">{{ totalReminders() }} total items</span>
+          </div>
+
+          <div class="space-y-2.5">
+            @for (cat of categoryDistribution(); track cat.name) {
+              <div class="space-y-1">
+                <div class="flex justify-between text-xs">
+                  <span class="font-medium text-slate-700 dark:text-slate-300">{{ cat.name }}</span>
+                  <span class="text-slate-500 dark:text-slate-400">{{ cat.count }} ({{ cat.percentage }}%)</span>
+                </div>
+                <div class="w-full bg-slate-100 dark:bg-slate-800 rounded-full h-2 overflow-hidden">
+                  <div
+                    class="bg-indigo-600 h-2 rounded-full transition-all duration-500"
+                    [style.width.%]="cat.percentage"
+                  ></div>
+                </div>
+              </div>
+            }
+          </div>
+        </app-card>
+      }
+
+      <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        
+        <!-- Active Bill & Payment Reminders -->
+        <app-card>
+          <div class="flex items-center justify-between mb-3">
+            <h3 class="text-base font-bold text-slate-900 dark:text-white flex items-center space-x-2">
+              <span>💳</span>
+              <span>Bill & Payment Reminders</span>
+            </h3>
+            <span class="text-xs text-slate-500">{{ billReminders().length }} active</span>
+          </div>
+
+          @if (billReminders().length === 0) {
+            <p class="text-xs text-slate-400 italic py-4 text-center">
+              No pending bills or payment reminders.
+            </p>
+          } @else {
+            <div class="space-y-2">
+              @for (bill of billReminders(); track bill.id) {
+                <div class="flex items-center justify-between p-2.5 rounded-xl bg-slate-50 dark:bg-slate-800/50 border border-slate-100 dark:border-slate-800 text-xs">
+                  <div>
+                    <h4 class="font-bold text-slate-900 dark:text-white">{{ bill.title }}</h4>
+                    <p class="text-[11px] text-slate-500">🇳🇵 {{ bill.dateBS }} • ⏰ {{ bill.time }}</p>
+                  </div>
+                  <button
+                    type="button"
+                    (click)="reminderService.toggleComplete(bill)"
+                    class="px-2 py-1 rounded-lg text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/60 font-semibold cursor-pointer"
+                  >
+                    ✓ Pay
+                  </button>
+                </div>
+              }
+            </div>
+          }
+        </app-card>
+
+        <!-- Upcoming Nepali Festivals -->
+        <app-card>
+          <div class="flex items-center justify-between mb-3">
+            <h3 class="text-base font-bold text-slate-900 dark:text-white flex items-center space-x-2">
+              <span>🇳🇵</span>
+              <span>Upcoming Festivals</span>
+            </h3>
+            <a routerLink="/calendar" class="text-xs text-indigo-600 dark:text-indigo-400 font-semibold hover:underline">
+              View Calendar →
+            </a>
+          </div>
+
+          <div class="space-y-2">
+            @for (item of upcomingFestivals(); track item.dateBS) {
+              <div class="flex items-center justify-between p-2.5 rounded-xl bg-amber-50/50 dark:bg-amber-950/20 border border-amber-200/50 dark:border-amber-900/40 text-xs">
+                <div>
+                  <h4 class="font-bold text-amber-900 dark:text-amber-200">
+                    {{ item.festival.nameNepali || item.festival.name }}
+                  </h4>
+                  <p class="text-[11px] text-amber-700/80 dark:text-amber-400">
+                    {{ item.dateBS }} ({{ item.festival.name }})
+                  </p>
+                </div>
+                <span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-100 dark:bg-amber-900/60 text-amber-800 dark:text-amber-200">
+                  {{ item.daysRemaining === 0 ? 'Today! 🎉' : item.daysRemaining + ' days left' }}
+                </span>
+              </div>
+            }
+          </div>
+        </app-card>
+
+      </div>
+
       <!-- Today's Reminders Section -->
       <div class="space-y-4">
         <div class="flex items-center justify-between">
@@ -197,76 +298,45 @@ import { FestivalInfo } from '../../core/models/calendar.model';
               {{ reminderService.dueToday().length }}
             </span>
           </h3>
-
-          <button
-            type="button"
-            (click)="openAddModal.set(true)"
-            class="text-xs font-bold text-indigo-600 dark:text-indigo-400 hover:underline cursor-pointer"
-          >
-            + Add New
-          </button>
         </div>
 
         @if (reminderService.dueToday().length === 0) {
-          <app-empty-state
-            icon="🎉"
-            title="All clear for today!"
-            description="You don't have any pending reminders scheduled for today."
-            actionLabel="+ Create Reminder"
-            (actionClicked)="openAddModal.set(true)"
-          />
+          <app-card>
+            <div class="text-center py-8">
+              <span class="text-4xl">✨</span>
+              <h4 class="text-sm font-bold text-slate-900 dark:text-white mt-2">All clear for today!</h4>
+              <p class="text-xs text-slate-500 dark:text-slate-400 mt-1">No pending tasks or reminders due today.</p>
+            </div>
+          </app-card>
         } @else {
-          <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+          <div class="space-y-2.5">
             @for (reminder of reminderService.dueToday(); track reminder.id) {
-              <div
-                class="flex items-start justify-between p-4 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800/80 shadow-sm transition-all hover:border-indigo-200 dark:hover:border-indigo-900/50"
-              >
-                <div class="flex items-start space-x-3">
+              <div class="flex items-center justify-between p-3.5 rounded-2xl bg-white dark:bg-slate-800/80 border border-slate-200/80 dark:border-slate-800 shadow-sm">
+                <div class="flex items-center space-x-3.5">
                   <input
                     type="checkbox"
                     [checked]="reminder.status === 'completed'"
                     (change)="reminderService.toggleComplete(reminder)"
-                    class="mt-1 h-5 w-5 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500 cursor-pointer"
+                    class="h-5 w-5 rounded-md border-slate-300 text-indigo-600 focus:ring-indigo-500 cursor-pointer"
                   />
                   <div>
-                    <h4
-                      class="text-sm font-bold text-slate-900 dark:text-white"
-                      [class.line-through]="reminder.status === 'completed'"
-                      [class.opacity-50]="reminder.status === 'completed'"
-                    >
-                      {{ reminder.title }}
-                    </h4>
-                    @if (reminder.description) {
-                      <p class="text-xs text-slate-500 dark:text-slate-400 mt-0.5 line-clamp-1">
-                        {{ reminder.description }}
-                      </p>
-                    }
-                    <div class="flex items-center space-x-2 mt-2 text-[11px] text-slate-500 dark:text-slate-400">
-                      <span>⏰ {{ reminder.time }}</span>
-                      <span>•</span>
-                      <span class="capitalize px-1.5 py-0.5 rounded bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 font-medium">
-                        {{ reminder.category }}
-                      </span>
-                      @if (reminder.status === 'snoozed') {
-                        <span>•</span>
-                        <span class="text-amber-600 dark:text-amber-400 font-bold">💤 Snoozed</span>
-                      }
-                    </div>
+                    <h4 class="text-sm font-bold text-slate-900 dark:text-white">{{ reminder.title }}</h4>
+                    <p class="text-xs text-slate-500 dark:text-slate-400">
+                      ⏰ {{ reminder.time }} • {{ reminder.category }}
+                    </p>
                   </div>
                 </div>
 
-                <div class="flex items-center space-x-1">
+                <div class="flex items-center space-x-1.5">
                   <button
                     type="button"
                     (click)="openSnooze(reminder)"
-                    class="p-1.5 rounded-lg text-slate-400 hover:text-amber-600 hover:bg-amber-50 dark:hover:bg-amber-950/40 transition-colors cursor-pointer text-xs"
-                    title="Snooze"
+                    class="px-2.5 py-1 text-xs font-semibold rounded-lg bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-300 hover:bg-slate-200 cursor-pointer"
                   >
-                    💤
+                    💤 Snooze
                   </button>
-
                   <span
-                    class="text-[10px] font-bold px-2 py-0.5 rounded-full capitalize"
+                    class="text-[10px] px-2 py-0.5 rounded-full font-bold uppercase"
                     [ngClass]="getPriorityClasses(reminder.priority)"
                   >
                     {{ reminder.priority }}
@@ -280,7 +350,7 @@ import { FestivalInfo } from '../../core/models/calendar.model';
 
     </div>
 
-    <!-- Quick Add Reminder Modal -->
+    <!-- Quick Add Modal -->
     <app-modal
       [isOpen]="openAddModal()"
       title="Create Reminder"
@@ -292,7 +362,7 @@ import { FestivalInfo } from '../../core/models/calendar.model';
       />
     </app-modal>
 
-    <!-- Snooze Modal -->
+    <!-- Snooze Duration Modal -->
     <app-snooze-modal
       [isOpen]="showSnoozeModal()"
       [reminder]="snoozeTarget()"
@@ -304,6 +374,8 @@ import { FestivalInfo } from '../../core/models/calendar.model';
 export class DashboardComponent implements OnInit, OnDestroy {
   readonly reminderService = inject(ReminderService);
   private readonly nepaliCalendar = inject(NepaliCalendarService);
+  private readonly festivalService = inject(FestivalService);
+  private readonly birthdayService = inject(BirthdayService);
 
   readonly openAddModal = signal<boolean>(false);
   readonly currentTime = signal<string>('');
@@ -316,6 +388,47 @@ export class DashboardComponent implements OnInit, OnDestroy {
   readonly snoozeTarget = signal<Reminder | null>(null);
 
   private clockInterval: any;
+
+  readonly totalReminders = computed(() => this.reminderService.allReminders().length);
+
+  readonly completionRate = computed(() => {
+    const total = this.totalReminders();
+    if (total === 0) return 100;
+    const completed = this.reminderService.completed().length;
+    return Math.round((completed / total) * 100);
+  });
+
+  readonly categoryDistribution = computed(() => {
+    const list = this.reminderService.allReminders();
+    const total = list.length;
+    if (total === 0) return [];
+
+    const map = new Map<string, number>();
+    for (const r of list) {
+      const cat = r.category || 'Other';
+      map.set(cat, (map.get(cat) || 0) + 1);
+    }
+
+    return Array.from(map.entries())
+      .map(([name, count]) => ({
+        name,
+        count,
+        percentage: Math.round((count / total) * 100)
+      }))
+      .sort((a, b) => b.count - a.count)
+      .slice(0, 5);
+  });
+
+  readonly billReminders = computed(() => {
+    const bills = ['Bill', 'Payment', 'Electricity', 'Internet', 'Water', 'Rent', 'Insurance', 'Subscription'];
+    return this.reminderService.allReminders().filter(
+      r => r.status === 'pending' && bills.includes(r.category)
+    ).slice(0, 4);
+  });
+
+  readonly upcomingFestivals = computed<UpcomingFestivalItem[]>(() => {
+    return this.festivalService.getUpcomingFestivals(4);
+  });
 
   ngOnInit() {
     this.updateClock();
@@ -355,7 +468,7 @@ export class DashboardComponent implements OnInit, OnDestroy {
     this.nepaliDateDisplay.set(this.nepaliCalendar.formatBsPretty(bs) + ' BS');
 
     // Check festival
-    const fest = this.nepaliCalendar.getFestival(bs);
+    const fest = this.festivalService.getFestival(bs.month, bs.day);
     this.todayFestival.set(fest || null);
   }
 

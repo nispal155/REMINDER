@@ -27,6 +27,11 @@ export const routes: Routes = [
     title: 'Birthdays - REMINDER'
   },
   {
+    path: 'events',
+    loadComponent: () => import('./features/events/events.component').then(m => m.EventsComponent),
+    title: 'Events - REMINDER'
+  },
+  {
     path: 'settings',
     loadComponent: () => import('./features/settings/settings.component').then(m => m.SettingsComponent),
     title: 'Settings - REMINDER'

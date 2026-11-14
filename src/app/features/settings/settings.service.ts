@@ -17,6 +17,8 @@ export class SettingsService {
 
   readonly settings = signal<AppSettings>({
     theme: 'system',
+    language: 'en',
+    nepaliNumerals: false,
     defaultCalendar: 'BS',
     defaultPriority: 'medium',
     weekStartDay: 'sunday',
@@ -42,6 +44,8 @@ export class SettingsService {
   async loadSettings(): Promise<void> {
     try {
       const theme = await this.settingsRepo.getSetting<AppTheme>('theme', 'system');
+      const language = await this.settingsRepo.getSetting<'en' | 'ne'>('language', 'en');
+      const nepaliNumerals = await this.settingsRepo.getSetting<boolean>('nepaliNumerals', false);
       const defaultCalendar = await this.settingsRepo.getSetting<CalendarType>('defaultCalendar', 'BS');
       const defaultPriority = await this.settingsRepo.getSetting<any>('defaultPriority', 'medium');
       const weekStartDay = await this.settingsRepo.getSetting<WeekStartDay>('weekStartDay', 'sunday');
@@ -61,6 +65,8 @@ export class SettingsService {
 
       this.settings.set({
         theme,
+        language,
+        nepaliNumerals,
         defaultCalendar,
         defaultPriority,
         weekStartDay,

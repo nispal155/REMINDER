@@ -55,3 +55,4 @@ export class AttachmentRepository {
     await db.attachments.clear();
   }
 }
+

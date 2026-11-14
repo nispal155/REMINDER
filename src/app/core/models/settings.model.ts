@@ -4,9 +4,12 @@ import { QuietHoursConfig } from './notification.model';
 export type AppTheme = 'light' | 'dark' | 'system';
 export type CalendarType = 'BS' | 'AD';
 export type WeekStartDay = 'sunday' | 'monday';
+export type AppLanguage = 'en' | 'ne';
 
 export interface AppSettings {
   theme: AppTheme;
+  language: AppLanguage;
+  nepaliNumerals: boolean;
   defaultCalendar: CalendarType;
   defaultPriority: Priority;
   weekStartDay: WeekStartDay;

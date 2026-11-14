@@ -74,3 +74,4 @@ export class SyncQueueRepository {
     await db.syncQueue.clear();
   }
 }
+

@@ -9,6 +9,7 @@ import { NotificationService } from '../../core/services/notification.service';
 import { AuthService } from '../../core/services/auth.service';
 import { SyncService } from '../../core/services/sync.service';
 import { BackupService } from '../../core/services/backup.service';
+import { I18nService } from '../../core/services/i18n.service';
 import { CardComponent } from '../../shared/components/card/card.component';
 import { ButtonComponent } from '../../shared/components/button/button.component';
 import { AppTheme, CalendarType } from '../../core/models/settings.model';
@@ -104,6 +105,57 @@ import { DriveFileItem } from '../../core/services/google-drive.service';
               <p class="text-[11px] text-slate-500 dark:text-slate-400">Standard English Calendar</p>
             </div>
           </button>
+        </div>
+      </app-card>
+
+      <!-- Language & Numerals Preference -->
+      <app-card>
+        <h3 class="text-base font-bold text-slate-900 dark:text-white mb-1">Language & Numerals</h3>
+        <p class="text-xs text-slate-500 dark:text-slate-400 mb-4">Choose application interface language and numeral display format.</p>
+
+        <div class="grid grid-cols-2 gap-3 mb-4">
+          <button
+            type="button"
+            (click)="i18n.setLanguage('en')"
+            [class.border-indigo-600]="i18n.currentLang() === 'en'"
+            [class.ring-2]="i18n.currentLang() === 'en'"
+            [class.ring-indigo-600]="i18n.currentLang() === 'en'"
+            class="flex items-center space-x-3 p-3.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-800/80 hover:bg-slate-50 dark:hover:bg-slate-800 transition-all cursor-pointer"
+          >
+            <span class="text-2xl">🇬🇧</span>
+            <div class="text-left">
+              <h4 class="text-xs sm:text-sm font-bold text-slate-800 dark:text-slate-200">English</h4>
+              <p class="text-[11px] text-slate-500 dark:text-slate-400">Standard English</p>
+            </div>
+          </button>
+
+          <button
+            type="button"
+            (click)="i18n.setLanguage('ne')"
+            [class.border-indigo-600]="i18n.currentLang() === 'ne'"
+            [class.ring-2]="i18n.currentLang() === 'ne'"
+            [class.ring-indigo-600]="i18n.currentLang() === 'ne'"
+            class="flex items-center space-x-3 p-3.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-800/80 hover:bg-slate-50 dark:hover:bg-slate-800 transition-all cursor-pointer"
+          >
+            <span class="text-2xl">🇳🇵</span>
+            <div class="text-left">
+              <h4 class="text-xs sm:text-sm font-bold text-slate-800 dark:text-slate-200">नेपाली</h4>
+              <p class="text-[11px] text-slate-500 dark:text-slate-400">नेपाली भाषा</p>
+            </div>
+          </button>
+        </div>
+
+        <div class="flex items-center justify-between py-2 border-t border-slate-100 dark:border-slate-800">
+          <div>
+            <h4 class="text-xs sm:text-sm font-medium text-slate-800 dark:text-slate-200">Nepali Numerals (०-९)</h4>
+            <p class="text-[11px] text-slate-500 dark:text-slate-400">Display dates and task counts in Devanagari numerals</p>
+          </div>
+          <input
+            type="checkbox"
+            [checked]="i18n.nepaliNumeralsEnabled()"
+            (change)="i18n.setNepaliNumerals(!i18n.nepaliNumeralsEnabled())"
+            class="w-5 h-5 rounded text-indigo-600 focus:ring-indigo-500 cursor-pointer"
+          />
         </div>
       </app-card>
 
@@ -549,6 +601,7 @@ export class SettingsComponent implements OnInit {
   readonly authService = inject(AuthService);
   readonly syncService = inject(SyncService);
   readonly backupService = inject(BackupService);
+  readonly i18n = inject(I18nService);
   private readonly indexedDbService = inject(IndexedDbService);
 
   readonly dbStats = signal<any>(null);

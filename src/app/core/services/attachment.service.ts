@@ -123,3 +123,4 @@ export class AttachmentService {
     await this.syncService.recordLocalChange('attachment', id, 'delete');
   }
 }
+

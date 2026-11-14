@@ -5,6 +5,7 @@ import { PwaInstallService } from '../../../core/services/pwa-install.service';
 import { NotificationService } from '../../../core/services/notification.service';
 import { SyncService } from '../../../core/services/sync.service';
 import { AuthService } from '../../../core/services/auth.service';
+import { I18nService } from '../../../core/services/i18n.service';
 import { ButtonComponent } from '../button/button.component';
 
 @Component({
@@ -28,14 +29,38 @@ import { ButtonComponent } from '../button/button.component';
               </span>
             </div>
             <p class="text-[11px] text-slate-500 dark:text-slate-400 hidden sm:block">
-              Offline-First Personal Assistant
+              {{ i18n.currentLang() === 'ne' ? 'अफलाइन-पहिलो व्यक्तिगत सहायक' : 'Offline-First Personal Assistant' }}
             </p>
           </div>
         </div>
 
         <!-- Action Items -->
-        <div class="flex items-center space-x-2 sm:space-x-3">
+        <div class="flex items-center space-x-2 sm:space-x-2.5">
           
+          <!-- Global Search Button (Omnibar Trigger) -->
+          <button
+            type="button"
+            (click)="openSearch.emit()"
+            class="flex items-center space-x-1.5 px-2.5 py-1.5 rounded-xl text-xs text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 border border-slate-200 dark:border-slate-800 cursor-pointer transition-all"
+            title="Search reminders, events, birthdays, festivals (⌘K / Ctrl+K)"
+          >
+            <span>🔍</span>
+            <span class="hidden md:inline text-slate-500">Search</span>
+            <kbd class="hidden md:inline text-[10px] px-1.5 py-0.5 rounded bg-slate-100 dark:bg-slate-800 text-slate-400 border border-slate-200 dark:border-slate-700">
+              ⌘K
+            </kbd>
+          </button>
+
+          <!-- Language Switcher Toggle (EN / ने) -->
+          <button
+            type="button"
+            (click)="toggleLanguage()"
+            class="px-2 py-1 text-xs font-bold rounded-lg border border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 cursor-pointer transition-all"
+            [title]="i18n.currentLang() === 'en' ? 'नेपाली भाषामा बदल्नुहोस्' : 'Switch to English'"
+          >
+            {{ i18n.currentLang() === 'en' ? 'ने' : 'EN' }}
+          </button>
+
           <!-- Cloud Sync Status Pill -->
           <div class="flex items-center">
             @if (authService.isAuthenticated()) {
@@ -116,19 +141,6 @@ import { ButtonComponent } from '../button/button.component';
             </button>
           }
 
-          <!-- Notification Permission Prompt -->
-          @if (notificationService.permissionState() === 'default') {
-            <button
-              type="button"
-              (click)="notificationService.requestPermission()"
-              class="hidden sm:inline-flex items-center space-x-1 px-2.5 py-1.5 text-xs font-semibold rounded-xl bg-indigo-50 dark:bg-indigo-950/70 text-indigo-600 dark:text-indigo-400 border border-indigo-200 dark:border-indigo-800 hover:bg-indigo-100 cursor-pointer"
-              title="Enable notifications"
-            >
-              <span>🔔</span>
-              <span>Enable Alerts</span>
-            </button>
-          }
-
           <!-- Theme Toggle -->
           <button
             type="button"
@@ -169,10 +181,18 @@ export class HeaderComponent {
   readonly notificationService = inject(NotificationService);
   readonly syncService = inject(SyncService);
   readonly authService = inject(AuthService);
+  readonly i18n = inject(I18nService);
+
   openQuickAdd = output<void>();
+  openSearch = output<void>();
 
   toggleTheme() {
     const next = this.themeService.isDark() ? 'light' : 'dark';
     this.themeService.setTheme(next);
+  }
+
+  toggleLanguage() {
+    const next = this.i18n.currentLang() === 'en' ? 'ne' : 'en';
+    this.i18n.setLanguage(next);
   }
 }
